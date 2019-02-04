@@ -14,6 +14,7 @@ int main() {
     env.set_max_dbs(64);
     env.open("testdb/");
     lmdb::dbi mydb;
+    lmdb::dbi mydbdups;
 
     // Put some values in and read them back out
 
@@ -90,6 +91,73 @@ int main() {
 
         txn.commit();
     }
+
+
+
+    // Sorted dups
+
+    {
+        auto txn = lmdb::txn::begin(env);
+        mydbdups = lmdb::dbi::open(txn, "mydbdups", MDB_CREATE | MDB_DUPSORT);
+
+        mydbdups.put(txn, "blah", "abc2");
+        mydbdups.put(txn, "blah", "abc1");
+        mydbdups.put(txn, "blah", "abc3");
+
+        txn.commit();
+    }
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+
+        auto cursor = lmdb::cursor::open(txn, mydbdups);
+        std::string_view key("blah"), val;
+
+        if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("cursor err 1");
+        if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
+
+        if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 3");
+        if (key != "blah" || val != "abc2") throw std::runtime_error("cursor err 4");
+
+        if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 5");
+        if (key != "blah" || val != "abc3") throw std::runtime_error("cursor err 6");
+
+        if (cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 7");
+
+        cursor.close();
+        txn.commit();
+    }
+
+
+    // Deleting a dup
+
+    {
+        auto txn = lmdb::txn::begin(env);
+
+        mydbdups.del(txn, "blah", "abc2");
+
+        txn.commit();
+    }
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+
+        auto cursor = lmdb::cursor::open(txn, mydbdups);
+        std::string_view key("blah"), val;
+
+        if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("cursor err 1");
+        if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
+
+        if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 5");
+        if (key != "blah" || val != "abc3") throw std::runtime_error("cursor err 6");
+
+        if (cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 7");
+
+        cursor.close();
+        txn.commit();
+    }
+
+
 
 
     // This test case crashes. See README.md
