@@ -31,6 +31,7 @@
 #include <stdexcept>   /* for std::runtime_error */
 #include <string_view> /* for std::string_view */
 #include <type_traits> /* for std::is_pod<> */
+#include <limits>      /* for std::numeric_limits<> */
 
 namespace lmdb {
   using mode = mdb_mode_t;
@@ -1237,7 +1238,7 @@ namespace lmdb {
  */
 class lmdb::dbi {
 protected:
-  MDB_dbi _handle{0};
+  MDB_dbi _handle{std::numeric_limits<MDB_dbi>::max()};
 
 public:
   static constexpr unsigned int default_flags     = 0;
@@ -1259,6 +1260,14 @@ public:
     lmdb::dbi_open(txn, name, flags, &handle);
     return dbi{handle};
   }
+
+  /**
+   * Constructor.
+   *
+   * @note Creates an uninitialized dbi instance. You must move or move-assign a valid dbi instance onto it before you can use it.
+   */
+  dbi() noexcept
+    : _handle{std::numeric_limits<MDB_dbi>::max()} {}
 
   /**
    * Constructor.

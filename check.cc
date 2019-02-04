@@ -13,13 +13,13 @@ int main() {
     auto env = lmdb::env::create();
     env.set_max_dbs(64);
     env.open("testdb/");
-
+    lmdb::dbi mydb;
 
     // Put some values in and read them back out
 
     {
         auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
+        mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
 
         mydb.put(txn, "hello", "world");
         mydb.put(txn, "abc", std::string("Q\0X", 3));
@@ -29,7 +29,6 @@ int main() {
 
     {
         auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         std::string_view v;
         mydb.get(txn, "hello", v);
@@ -43,7 +42,6 @@ int main() {
 
     {
         auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
 
         mydb.put(txn, "hello", "WORLD!");
 
@@ -52,7 +50,6 @@ int main() {
 
     {
         auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         std::string_view v;
         mydb.get(txn, "hello", v);
@@ -64,7 +61,6 @@ int main() {
 
     {
         auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         auto cursor = lmdb::cursor::open(txn, mydb);
         std::string_view key, val;
@@ -85,7 +81,6 @@ int main() {
 
     {
         auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         mydb.del(txn, "hello");
 
@@ -101,7 +96,6 @@ int main() {
 
     if (0) {
         auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         auto cursor = lmdb::cursor::open(txn, mydb);
         std::string_view key, val;

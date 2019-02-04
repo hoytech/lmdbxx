@@ -126,6 +126,20 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
       // Please don't do stuff like this:
       std::string_view val(reinterpret_cast<char*>(&myObject), sizeof(myObject));
 
+* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with a move or move-assignment before using them, for example:
+
+      lmdb::dbi mydb;
+
+      // mydb is uninitialized, don't use it!
+
+      {
+          auto txn = lmdb::txn::begin(env);
+          mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
+          txn.commit();
+      }
+
+      // now mydb is safe to use
+
 * Converted documentation to markdown.
 
 * Added a section to the docs describing the [cursor double-free issue](#cursor-double-free-issue).
