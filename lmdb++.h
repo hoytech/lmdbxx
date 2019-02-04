@@ -1412,7 +1412,7 @@ public:
   }
 
   /**
-   * Removes a key/value pair from this database.
+   * Removes a key from this database.
    *
    * @param txn a transaction handle
    * @param key
@@ -1422,6 +1422,22 @@ public:
            const std::string_view key) {
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     return lmdb::dbi_del(txn, handle(), &keyV);
+  }
+
+  /**
+   * Removes a key/value pair from this database.
+   *
+   * @param txn a transaction handle
+   * @param key
+   * @param val
+   * @throws lmdb::error on failure
+   */
+  bool del(MDB_txn* const txn,
+           const std::string_view key,
+           const std::string_view val) {
+    const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
+    const MDB_val valV{val.size(), const_cast<char*>(val.data())};
+    return lmdb::dbi_del(txn, handle(), &keyV, &valV);
   }
 };
 
