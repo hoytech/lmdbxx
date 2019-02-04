@@ -11,3 +11,4 @@ example.mdb
 lmdbxx-*.tar.bz2
 lmdbxx-*.tar.gz
 lmdbxx-*.tar.xz
+/testdb/

@@ -12,8 +12,8 @@ DESTDIR  :=
 PREFIX   := /usr/local
 
 CPPFLAGS := -I.
-CXXFLAGS := -g -O0 -std=c++11 -Wall -Werror
-LDFLAGS  :=
+CXXFLAGS := -g -O2 -std=c++17 -Wall -Werror -fsanitize=address
+LDFLAGS  := -fsanitize=address
 LDADD    := -llmdb
 
 includedir = $(PREFIX)/include
@@ -32,8 +32,12 @@ default: help
 help:
 	@echo 'Install the <lmdb++.h> header file using `make install`.'
 
-check: check.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LDADD) && ./$@
+check: check.o testdb
+	$(CXX) $(LDFLAGS) -o $@ check.o $(LDADD) && ./$@
+
+testdb:
+	mkdir -p testdb/
+	rm -f testdb/data.mdb testdb/lock.mdb
 
 example: example.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDADD) && ./$@
@@ -80,4 +84,4 @@ dist:
 	tar -chzf $(PACKAGE_TARSTRING).tar.gz \
 	    --transform 's,^,$(PACKAGE_TARSTRING)/,' $(DISTFILES)
 
-.PHONY: help check example installdirs install uninstall clean doxygen maintainer-doxygen dist
+.PHONY: help check example installdirs install uninstall clean doxygen maintainer-doxygen dist testdb
