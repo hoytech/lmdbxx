@@ -1625,19 +1625,6 @@ public:
     }
     return ret;
   }
-
-  /**
-   * Positions this cursor at the given key.
-   *
-   * @param key
-   * @param op
-   * @throws lmdb::error on failure
-   */
-  bool find(const std::string_view key,
-            const MDB_cursor_op op = MDB_SET) {
-    MDB_val keyV{key.size(), const_cast<char*>(key.data())};
-    return get(&keyV, nullptr, op);
-  }
 };
 
 ////////////////////////////////////////////////////////////////////////////////

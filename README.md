@@ -115,7 +115,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
     In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `const char *`, `char *`, `std::string`, and maybe others.
 
-* The templated `get`, `put`, and `find` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
+* The templated `get` and `put` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
 
   I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
 
@@ -140,7 +140,9 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
       // now mydb is safe to use
 
-* Added a version of `dbi::del` that let's you pass in a value as well as a key. This allows you to delete sorted dup items.
+* Added a version of `dbi::del` that lets you pass in a value as well as a key. This allows you to delete sorted dup items.
+
+* The `find` method on cursors has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You can do this manually, choose to use `MDB_SET_KEY`, `MDB_SET_KEY`, `MDB_GET_BOTH_RANGE`, and so on.
 
 * Converted documentation to markdown.
 
