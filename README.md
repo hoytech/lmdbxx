@@ -113,18 +113,18 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
           longLivedValue = v;
       }
 
-    In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed from this. This works for `const char *`, `char *`, `std::string`, and maybe others.
+    In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `const char *`, `char *`, `std::string`, and maybe others.
 
-* The templated `get`, `put`, and `find` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof()` of the type. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience memory corruption.
+* The templated `get`, `put`, and `find` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
 
   I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
 
-  You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, reordering, etc.
+  You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, reordering, etc.
 
   Of course if you really want to store raw structs in your database you can still do so by casting a pointer and putting it into a `string_view`:
 
       // Please don't do stuff like this:
-      std::string_view sv(reinterpret_cast<char*>(&myObject), sizeof(myObject));
+      std::string_view val(reinterpret_cast<char*>(&myObject), sizeof(myObject));
 
 * Converted documentation to markdown.
 
