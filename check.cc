@@ -7,6 +7,8 @@
 
 
 int main() {
+  std::string longLivedValue;
+
   try {
     auto env = lmdb::env::create();
     env.set_max_dbs(64);
@@ -32,6 +34,8 @@ int main() {
         std::string_view v;
         mydb.get(txn, "hello", v);
         if (v != "world") throw std::runtime_error("bad read");
+
+        longLivedValue = v;
     }
 
 
@@ -106,11 +110,13 @@ int main() {
         //cursor.close(); // <-- UNCOMMENT TO FIX CRASH (https://github.com/drycpp/lmdbxx/issues/22)
         txn.commit();
     }
-
-    return 0;
   }
   catch (const lmdb::error& error) {
     std::cerr << "Failed with error: " << error.what() << std::endl;
     return 1;
   }
+
+  if (longLivedValue != "world") throw std::runtime_error("bad longLivedValue");
+
+  return 0;
 }

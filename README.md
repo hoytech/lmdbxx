@@ -13,46 +13,49 @@ See the [Fork Differences](#fork-differences) section for full details on what h
 
 Here follows a simple motivating example demonstrating basic use of the object-oriented resource interface::
 
-   #include <iostream>
-   #include <lmdb++.h>
+    #include <iostream>
+    #include <lmdb++.h>
 
-   int main() {
-       /* Create and open the LMDB environment: */
-       auto env = lmdb::env::create();
-       env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
-       env.open("./example.mdb", 0, 0664);
+    int main() {
+        /* Create and open the LMDB environment: */
+        auto env = lmdb::env::create();
+        env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
+        env.open("./example.mdb", 0, 0664);
 
-       /* Insert some key/value pairs in a write transaction: */
+        /* Insert some key/value pairs in a write transaction: */
+        {
+            auto wtxn = lmdb::txn::begin(env);
+            auto dbi = lmdb::dbi::open(wtxn, nullptr);
+
+            dbi.put(wtxn, "username", "jhacker");
+            dbi.put(wtxn, "email", "jhacker@example.org");
+            dbi.put(wtxn, "fullname", "J. Random Hacker");
+
+            wtxn.commit();
+       }
+
        {
-           auto wtxn = lmdb::txn::begin(env);
-           auto dbi = lmdb::dbi::open(wtxn, nullptr);
-           dbi.put(wtxn, "username", "jhacker");
-           dbi.put(wtxn, "email", "jhacker@example.org");
-           dbi.put(wtxn, "fullname", "J. Random Hacker");
-           wtxn.commit();
-      }
+           auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+           auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
-      {
-          auto rtxn = lmdb::txn::begin(env);
-          auto dbi = lmdb::dbi::open(rtxn, nullptr);
+           {
+               auto cursor = lmdb::cursor::open(rtxn, dbi);
 
-          auto cursor = lmdb::cursor::open(rtxn, dbi);
+               std::string_view key, value;
+               if (cursor.get(key, value, MDB_FIRST)) {
+                   do {
+                       std::cout << "key: " << key << "  value: " << value << std::endl;
+                   } while (cursor.get(key, value, MDB_NEXT));
+               }
+           } // must destroy cursor before committing/aborting transaction
 
-          std::string_view key, value;
-          if (cursor.get(key, value, MDB_FIRST)) {
-              do {
-                  std::cout << "key: '" << key << "'  value: '" << value << "'" << std::endl;
-              } while (cursor.get(key, value, MDB_NEXT));
-          }
+           rtxn.abort();
+       }
 
-          cursor.close();
-          rtxn.abort();
-      }
+        /* The enviroment is closed automatically. */
 
-       /* The enviroment is closed automatically. */
-
-       return 0;
-   }
+        return 0;
+    }
 
 **NOTE:** In order to run this example, you must first manually create the
 `./example.mdb` directory. This is a basic characteristic of LMDB: the
@@ -97,11 +100,29 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
   The standard LMDB caveats apply: If you need to keep this string around after closing the transaction (or performing any write operation on the DB) then be sure to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
 
-* The templated `get`, `put`, and `find` methods have been removed. These would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof()` of the type. I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
+      std::string longLivedValue;
+
+      {
+          auto txn = lmdb::txn::begin(env);
+          auto mydb = lmdb::dbi::open(txn, "mydb");
+
+          std::string_view v;
+          mydb.get(txn, "hello", v);
+
+          longLivedValue = v;
+      }
+
+
+* The templated `get`, `put`, and `find` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof()` of the type. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience memory corruption.
+
+  I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
 
   You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, reordering, etc.
 
-  Of course if you really want to store raw structs in your database you still can by casting a pointer and putting it in a `string_view`.
+  Of course if you really want to store raw structs in your database you can still do so by casting a pointer and putting it into a `string_view`:
+
+      // Please don't do stuff like this:
+      std::string_view sv(reinterpret_cast<char*>(&myObject), sizeof(myObject));
 
 * Converted documentation to markdown.
 
@@ -113,7 +134,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 This wrapper offers both an error-checked procedural interface and an
 object-oriented resource interface with RAII semantics. The former will be
 useful for easily retrofitting existing projects that currently use the raw
-C interface, but we recommend the latter for all new projects due to the
+C interface, but **we recommend the resource interface* for all new projects due to the
 exception safety afforded by RAII semantics.
 
 ### Resource Interface
@@ -195,7 +216,7 @@ Consider this code:
         txn.commit();
     } // <-- BAD! cursor is destroyed here
 
-The above code will result in a double free. You can uncomment a test case in `example.cc` to test this. With `-fsanitize=address` enabled you will see the following:
+The above code will result in a double free. You can uncomment a test case in `example.cc` if you want to verify this for yourself. When compiled with `-fsanitize=address` you will see the following:
 
     ==14400==ERROR: AddressSanitizer: attempting double-free on 0x614000000240 in thread T0:
 
