@@ -140,6 +140,8 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
       // now mydb is safe to use
 
+* Added a version of `dbi::del` that let's you pass in a value as well as a key. This allows you to delete sorted dup items.
+
 * Converted documentation to markdown.
 
 * Added a section to the docs describing the [cursor double-free issue](#cursor-double-free-issue).
