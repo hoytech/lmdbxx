@@ -22,7 +22,7 @@ Here follows a simple motivating example demonstrating basic use of the object-o
         env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
         env.open("./example.mdb", 0, 0664);
 
-        /* Insert some key/value pairs in a write transaction: */
+        // Inserting some key/value pairs in a write transaction:
         {
             auto wtxn = lmdb::txn::begin(env);
             auto dbi = lmdb::dbi::open(wtxn, nullptr);
@@ -34,6 +34,7 @@ Here follows a simple motivating example demonstrating basic use of the object-o
             wtxn.commit();
        }
 
+       // In a read-only transaction, print out all the values using a cursor:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
            auto dbi = lmdb::dbi::open(rtxn, nullptr);
@@ -47,7 +48,7 @@ Here follows a simple motivating example demonstrating basic use of the object-o
                        std::cout << "key: " << key << "  value: " << value << std::endl;
                    } while (cursor.get(key, value, MDB_NEXT));
                }
-           } // must destroy cursor before committing/aborting transaction
+           } // destroying cursor before committing/aborting transaction (see below)
 
            rtxn.abort();
        }
@@ -112,6 +113,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
           longLivedValue = v;
       }
 
+    In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed from this. This works for `const char *`, `char *`, `std::string`, and maybe others.
 
 * The templated `get`, `put`, and `find` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof()` of the type. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience memory corruption.
 
@@ -134,7 +136,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 This wrapper offers both an error-checked procedural interface and an
 object-oriented resource interface with RAII semantics. The former will be
 useful for easily retrofitting existing projects that currently use the raw
-C interface, but **we recommend the resource interface* for all new projects due to the
+C interface, but **we recommend the resource interface** for all new projects due to the
 exception safety afforded by RAII semantics.
 
 ### Resource Interface
@@ -235,6 +237,7 @@ To fix this, you should call `cursor.close()` before you call `txn.commit()`. Or
         txn.commit();
     }
 
+Note that the double-free issue does not affect read-only transactions, but it is good practice to ensure destruction of all cursors and transactions happen in the correct order, as shown in the motivating example. This is because you may change a read-only transaction to a read-write transaction in the future.
 
 
 ## Error Handling

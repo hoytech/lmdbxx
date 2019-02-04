@@ -7,7 +7,7 @@
         env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
         env.open("./example.mdb", 0, 0664);
 
-        /* Insert some key/value pairs in a write transaction: */
+        // Inserting some key/value pairs in a write transaction:   
         {
             auto wtxn = lmdb::txn::begin(env);
             auto dbi = lmdb::dbi::open(wtxn, nullptr);
@@ -19,6 +19,7 @@
             wtxn.commit();
        }
 
+       // In a read-only transaction, print out all the values using a cursor:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
            auto dbi = lmdb::dbi::open(rtxn, nullptr);
@@ -32,7 +33,7 @@
                        std::cout << "key: " << key << "  value: " << value << std::endl;
                    } while (cursor.get(key, value, MDB_NEXT));
                }
-           } // must destroy cursor before committing/aborting transaction
+           } // destroying cursor before committing/aborting transaction (see below)
 
            rtxn.abort();
        }
