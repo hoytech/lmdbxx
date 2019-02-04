@@ -12,6 +12,9 @@ int main() {
     env.set_max_dbs(64);
     env.open("testdb/");
 
+
+    // Put some values in and read them back out
+
     {
         auto txn = lmdb::txn::begin(env);
         auto mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
@@ -31,37 +34,32 @@ int main() {
         if (v != "world") throw std::runtime_error("bad read");
     }
 
+
+    // Update one of the values
+
     {
         auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
+        auto mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
 
-        mydb.del(txn, "hello");
+        mydb.put(txn, "hello", "WORLD!");
+
+        txn.commit();
+    }
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+        auto mydb = lmdb::dbi::open(txn, "mydb");
 
         std::string_view v;
-        bool found = mydb.get(txn, "hello", v);
-        if (found) throw std::runtime_error("wasn't deleted");
+        mydb.get(txn, "hello", v);
+        if (v != "WORLD!") throw std::runtime_error("bad read 2");
     }
 
-/*
-    {
-        auto txn = lmdb::txn::begin(env);
-        auto mydb = lmdb::dbi::open(txn, "mydb");
 
-        auto cursor = lmdb::cursor::open(txn, mydb);
-        std::string_view key, value;
-
-        if (cursor.get(key, value, MDB_FIRST)) {
-            do {
-                std::cout << "key: '" << key << "'  value: '" << value << "'" << std::endl;
-            } while (cursor.get(key, value, MDB_NEXT));
-        }
-
-        cursor.close();
-    }
-*/
+    // Iterate over the values with a cursor
 
     {
-        auto txn = lmdb::txn::begin(env);
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
         auto mydb = lmdb::dbi::open(txn, "mydb");
 
         auto cursor = lmdb::cursor::open(txn, mydb);
@@ -71,11 +69,42 @@ int main() {
         if (key != "abc" || val != std::string("Q\0X", 3)) throw std::runtime_error("cursor err 2");
 
         if (!cursor.get(key, val, MDB_NEXT)) throw std::runtime_error("cursor err 3");
-        if (key != "hello" || val != "world") throw std::runtime_error("cursor err 4");
+        if (key != "hello" || val != "WORLD!") throw std::runtime_error("cursor err 4");
 
         if (cursor.get(key, val, MDB_NEXT)) throw std::runtime_error("cursor err 5");
 
         cursor.close();
+    }
+
+
+    // Delete a value
+
+    {
+        auto txn = lmdb::txn::begin(env);
+        auto mydb = lmdb::dbi::open(txn, "mydb");
+
+        mydb.del(txn, "hello");
+
+        std::string_view v;
+        bool found = mydb.get(txn, "hello", v);
+        if (found) throw std::runtime_error("wasn't deleted");
+
+        txn.commit();
+    }
+
+
+    // This test case crashes. See README.md
+
+    if (0) {
+        auto txn = lmdb::txn::begin(env);
+        auto mydb = lmdb::dbi::open(txn, "mydb");
+
+        auto cursor = lmdb::cursor::open(txn, mydb);
+        std::string_view key, val;
+        cursor.get(key, val, MDB_FIRST);
+
+        //cursor.close(); // <-- UNCOMMENT TO FIX CRASH (https://github.com/drycpp/lmdbxx/issues/22)
+        txn.commit();
     }
 
     return 0;
