@@ -100,9 +100,13 @@ int main() {
         auto txn = lmdb::txn::begin(env);
         mydbdups = lmdb::dbi::open(txn, "mydbdups", MDB_CREATE | MDB_DUPSORT);
 
+        mydbdups.put(txn, "aaaa", "junk");
+
         mydbdups.put(txn, "blah", "abc2");
         mydbdups.put(txn, "blah", "abc1");
         mydbdups.put(txn, "blah", "abc3");
+
+        mydbdups.put(txn, "cccc", "junk");
 
         txn.commit();
     }
@@ -113,7 +117,9 @@ int main() {
         auto cursor = lmdb::cursor::open(txn, mydbdups);
         std::string_view key("blah"), val;
 
-        if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("cursor err 1");
+        if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
+        if (!cursor.get(key, val, MDB_FIRST_DUP)) throw std::runtime_error("FIRST_DUP err");
+
         if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
 
         if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 3");
@@ -145,7 +151,7 @@ int main() {
         auto cursor = lmdb::cursor::open(txn, mydbdups);
         std::string_view key("blah"), val;
 
-        if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("cursor err 1");
+        if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
         if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
 
         if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 5");
