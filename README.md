@@ -140,9 +140,15 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
       // now mydb is safe to use
 
-* Added a version of `dbi::del` that lets you pass in a value as well as a key. This allows you to delete sorted dup items.
+* The cursor methods have been completed. `put`, `del`, and `count` have been added, completing the LMDB cursor interface.
 
-* The `find` method on cursors has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You can do this manually, choose to use `MDB_SET_KEY`, `MDB_SET_KEY`, `MDB_GET_BOTH_RANGE`, and so on.
+  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should do this directly now, and you you additionally have the option of using `MDB_SET_KEY`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
+
+  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
+
+* Added a version of `del` to the dbi resource interface that lets you pass in a value as well as a key. Now you can delete sorted dup items via the dbi resource interface.
+
+* Considerably expanded the test suite.
 
 * Converted documentation to markdown.
 
