@@ -92,74 +92,44 @@ library. On Ubuntu Linux 14.04 and newer, these prerequisites can be
 satisfied by installing the `liblmdb-dev` package.
 
 
-## Fork Differences
-
-This C++17 version is a fork of Arto Bendiken's C++11 version with the following changes:
-
-* `lmdb::val` has been removed and replaced with `std::string_view`.
-  This results in less copying in some cases. For example, you can pass a `string::view` that is pointing into LMDB's memory directly to a JSON parser routine without first copying it into a `std::string`.
-
-  The standard LMDB caveats apply: If you need to keep this string around after closing the transaction (or performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
-
-      std::string longLivedValue;
-
-      {
-          auto txn = lmdb::txn::begin(env);
-          auto mydb = lmdb::dbi::open(txn, "mydb");
-
-          std::string_view v;
-          mydb.get(txn, "hello", v);
-
-          longLivedValue = v;
-      }
-
-    In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `const char *`, `char *`, `std::string`, and maybe others.
-
-* The templated versions of the `get` and `put` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures then you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
-
-  I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
-
-  You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
-
-  If you do want to store raw PODs or structs in your database, see the `from_sv` and `to_sv` methods described in [string_view Conversions](#string_view-conversions).
-
-* The cursor methods have been completed. `put`, `del`, and `count` have been added, completing the LMDB cursor interface.
-
-  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should do this directly now, and you instead have the option of using `MDB_SET_KEY`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
-
-  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
-
-* Added a version of `del` to the dbi resource interface that lets you pass in a value as well as a key. Now you can delete sorted dup items via the dbi resource interface.
-
-* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with move or move-assignment first, for example:
-
-      lmdb::dbi mydb;
-
-      // mydb is uninitialized, don't use it!
-
-      {
-          auto txn = lmdb::txn::begin(env);
-          mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
-          txn.commit();
-      }
-
-      // now mydb is safe to use
-
-* Considerably expanded the test suite.
-
-* Converted documentation to markdown.
-
-* Added a section to the docs describing the [cursor double-free issue](#cursor-double-free-issue).
 
 
+## string_view
 
-## string_view Conversions
+LMDB uses a simple struct named `MDB_val` which contains only a `void *` and a `size_t`. This is what it uses to represent both keys and values in all functions. As of C++17, there is a standard type known as [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view) which also contains only a pointer and a size. In the resource interface of this library, `std::string_view` is used instead of `MDB_val` (like the underlying LMDB C library), or a custom type such as `lmdb::val` (as does Arto's version of lmdbxx).
 
-Arto's original version of this library had templated `get` and `put` methods. This fork has removed those, but now has explicit methods to convert to and from the `std::string_view` objects required to interact with the database.
+The nice thing about `std::string_view` is that it is very compatible with everything else in C++. You can pass them to any method that accepts a `std::string`. Unfortunately if you do that, an `std::string` object will be created which involves the data being copied from the LMDB memory map to a new allocation on the heap (ignoring small string optimisations).
 
-**Note:** These conversion functions are mostly designed for purposes like storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/).
+However, with some care `std::string_view` lets you avoid copying in several cases. For example, you can take zero-copy substrings by using `substr()`. Many modern C++ libraries are now being designed to reduce or eliminate copying by accepting or returning `std::string_view` objects, for example the [TAO C++ JSON parser](https://github.com/taocpp/json) and the [flatbuffers serialisation system](http://google.github.io/flatbuffers/).
 
-### Copying
+When getting an `std::string_view`, the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
+
+    std::string longLivedValue;
+
+    {
+        auto txn = lmdb::txn::begin(env);
+        auto mydb = lmdb::dbi::open(txn, "mydb");
+
+        std::string_view v;
+        mydb.get(txn, "hello", v);
+
+        longLivedValue = v;
+    }
+
+In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, `const std::string&`, and maybe others.
+
+
+### string_view Conversions
+
+Arto's original version of this library had templated `get` and `put` convenience methods. This fork has removed those in favour of explicit methods for converting to and from the `std::string_view` objects required to interact with the database. The implicit conversions on `get` and `put` reduce type safety and caused [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
+
+**Note:** These conversion functions described in this section are mostly designed for purposes like storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/).
+
+You have to be very careful when using these methods since if you have any pointers in your structures then you will almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
+
+You can get almost all the performance benefit of storing raw structs by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
+
+#### Copying
 
 For example, suppose you want to store raw `uint64_t` values in a DB. You can use the `to_sv` function to create a `string_view` which can then be passed to a `put` method:
 
@@ -177,7 +147,7 @@ Afterwards, you can `get` the value back out of the DB and extract the `uint64_t
 
 Note that this copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this is fine, but for large structs you may want to use the pointer-based conversions described in the next section.
 
-### Pointer-based
+#### Pointer-based
 
 If you wish to avoid the copying and have the `string_view` point directly to an existing block of memory, you can use `ptr_to_sv` (note that the templated type is optional here since it can be inferred from the pointer type):
 
@@ -359,15 +329,54 @@ Questions and discussions about LMDB itself should be directed to the [OpenLDAP 
 
 Also see Arto's original [github](https://github.com/bendiken/lmdbxx) (not maintained anymore?) and [sourceforge documentation](https://sourceforge.net/projects/lmdbxx/) (not up to date with this fork's changes).
 
-Author
-======
+
+
+## Fork Differences
+
+This C++17 version is a fork of Arto Bendiken's C++11 version with the following changes:
+
+* `lmdb::val` has been removed and replaced with `std::string_view`. See the [string::view section for more details](#string_view)
+
+* The templated versions of the `get` and `put` methods have been removed. See the conversion methods described in [string_view Conversions](#string_view-conversions) for an alternative.
+
+* The cursor interface has been completed. `put`, `del`, and `count` have been added, bringing us to parity with the LMDB API.
+
+  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should now do this directly, and you can now choose between `MDB_SET`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
+
+  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
+
+* A `del` method has been added to the `lmdb::dbi` resource interface that lets you pass in a value as well as a key so that you can delete sorted dup items via dbi objects.
+
+* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with move or move-assignment first, for example:
+
+      lmdb::dbi mydb;
+
+      // mydb is uninitialized, don't use it!
+
+      {
+          auto txn = lmdb::txn::begin(env);
+          mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
+          txn.commit();
+      }
+
+      // now mydb is safe to use
+
+* Considerably expanded the test suite.
+
+* Converted documentation to markdown.
+
+* Added a section to the docs describing the [cursor double-free issue](#cursor-double-free-issue).
+
+
+
+
+## Author
 
 [Arto Bendiken](https://ar.to/)
 
 This fork maintained by [Doug Hoyte](https://hoytech.com)
 
-License
-=======
+## License
 
 This is free and unencumbered public domain software. For more information,
 see http://unlicense.org/ or the accompanying `UNLICENSE` file.
