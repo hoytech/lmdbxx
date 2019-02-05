@@ -20,7 +20,7 @@ Here follows a simple motivating example demonstrating basic use of the object-o
         /* Create and open the LMDB environment: */
         auto env = lmdb::env::create();
         env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
-        env.open("./example.mdb", 0, 0664);
+        env.open("./example.mdb/", 0, 0664);
 
         // Inserting some key/value pairs in a write transaction:
         {
@@ -28,13 +28,26 @@ Here follows a simple motivating example demonstrating basic use of the object-o
             auto dbi = lmdb::dbi::open(wtxn, nullptr);
 
             dbi.put(wtxn, "username", "jhacker");
-            dbi.put(wtxn, "email", "jhacker@example.org");
-            dbi.put(wtxn, "fullname", "J. Random Hacker");
+            dbi.put(wtxn, "email",    std::string("jhacker@example.org"));
+            dbi.put(wtxn, "fullname", std::string_view("J. Random Hacker"));
 
             wtxn.commit();
        }
 
-       // In a read-only transaction, print out all the values using a cursor:
+       // In a read-only transaction, get and print one of the values:
+       {
+           auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+           auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+           std::string_view email;
+           if (dbi.get(rtxn, "email", email)) {
+               std::cout << "The email is: " << email << std::endl;
+           } else {
+               std::cout << "email not found!" << std::endl;
+           }
+       } // rtxn aborted automatically
+
+       // Print out all the values using a cursor:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
            auto dbi = lmdb::dbi::open(rtxn, nullptr);
@@ -49,17 +62,13 @@ Here follows a simple motivating example demonstrating basic use of the object-o
                    } while (cursor.get(key, value, MDB_NEXT));
                }
            } // destroying cursor before committing/aborting transaction (see below)
-
-           rtxn.abort();
        }
 
-        /* The enviroment is closed automatically. */
-
         return 0;
-    }
+    } // enviroment closed automatically
 
 **NOTE:** In order to run this example, you must first manually create the
-`./example.mdb` directory. This is a basic characteristic of LMDB: the
+`./example.mdb/` directory. This is a basic characteristic of LMDB: the
 given environment path must already exist, as LMDB will not attempt to
 automatically create it.
 
@@ -72,7 +81,7 @@ semantics.
 ## Features
 
 * Designed to be entirely self-contained as a single `<lmdb++.h>` header file that can be dropped into a project.
-* Implements a straightforward mapping from C to C++, with consistent naming.
+* Implements a straightforward mapping to and from the LMDB C library, with consistent naming.
 * Provides both a procedural interface and an object-oriented RAII interface.
 * Simplifies error handling by translating error codes into C++ exceptions.
 * Carefully differentiates logic errors, runtime errors, and fatal errors.
@@ -96,13 +105,13 @@ satisfied by installing the `liblmdb-dev` package.
 
 ## string_view
 
-LMDB uses a simple struct named `MDB_val` which contains only a `void *` and a `size_t`. This is what it uses to represent both keys and values in all functions. As of C++17, there is a standard type known as [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view) which also contains only a pointer and a size. In the resource interface of this library, `std::string_view` is used instead of `MDB_val` (like the underlying LMDB C library), or a custom type such as `lmdb::val` (as does Arto's version of lmdbxx).
+LMDB uses a simple struct named `MDB_val` which contains only a `void *` and a `size_t`. This is what it uses to represent both keys and values in all functions. As of C++17, there is a standard type known as [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view) which also contains only a pointer and a size. In the resource interface of this library, `std::string_view` is used for all keys and values.
 
-The nice thing about `std::string_view` is that it is very compatible with everything else in C++. You can pass them to any method that accepts a `std::string`. Unfortunately if you do that, an `std::string` object will be created which involves the data being copied from the LMDB memory map to a new allocation on the heap (ignoring small string optimisations).
+The nice aspect about `std::string_view` objects is that they are compatible with everything else in C++. You can pass them to any method that accepts an `std::string`. Unfortunately, in those cases an `std::string` object will be created which involves the data being copied from the LMDB memory map to a new allocation on the heap (unless your string is small, then there may be [small string optimisation](https://stackoverflow.com/questions/21694302/what-are-the-mechanics-of-short-string-optimization-in-libc)).
 
 However, with some care `std::string_view` lets you avoid copying in several cases. For example, you can take zero-copy substrings by using `substr()`. Many modern C++ libraries are now being designed to reduce or eliminate copying by accepting or returning `std::string_view` objects, for example the [TAO C++ JSON parser](https://github.com/taocpp/json) and the [flatbuffers serialisation system](http://google.github.io/flatbuffers/).
 
-When getting an `std::string_view`, the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
+When getting an `std::string_view`, the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or after performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
 
     std::string longLivedValue;
 
@@ -116,18 +125,16 @@ When getting an `std::string_view`, the standard LMDB caveats apply: If you need
         longLivedValue = v;
     }
 
-In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, `const std::string&`, and maybe others.
+In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, `const std::string&`, etc.
 
 
 ### string_view Conversions
 
-Arto's original version of this library had templated `get` and `put` convenience methods. This fork has removed those in favour of explicit methods for converting to and from the `std::string_view` objects required to interact with the database. The implicit conversions on `get` and `put` reduce type safety and caused [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
+Arto's original version of this library had templated `get` and `put` convenience methods. These methods reduced type safety and [caused problems for some users](https://github.com/drycpp/lmdbxx/issues/1) so this fork has removed them in favour of explicit methods to convert to and from `std::string_view`s.
 
-**Note:** These conversion functions described in this section are mostly designed for purposes like storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/).
+**Note:** These conversion functions described in this section are mostly designed for storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/). With these you can get almost all the performance benefit of storing raw structs. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
 
-You have to be very careful when using these methods since if you have any pointers in your structures then you will almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
-
-You can get almost all the performance benefit of storing raw structs by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
+If you do decide to store complex structs directly, you have to be very careful when using the following methods. If you have any pointers in your structures then you will almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
 
 #### Copying
 
@@ -145,7 +152,7 @@ Afterwards, you can `get` the value back out of the DB and extract the `uint64_t
 
 `from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
 
-Note that this copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this is fine, but for large structs you may want to use the pointer-based conversions described in the next section.
+Note that this copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this doesn't make a difference, but for large structs you may want to use the pointer-based conversions described in the next section.
 
 #### Pointer-based
 
@@ -273,7 +280,7 @@ To fix this, you should call `cursor.close()` before you call `txn.commit()`. Or
         txn.commit();
     }
 
-Note that the double-free issue does not affect read-only transactions, but it is good practice to ensure destruction of all cursors and transactions happen in the correct order, as shown in the motivating example. This is because you may change a read-only transaction to a read-write transaction in the future.
+Note that the double-free issue does not affect read-only transactions, but it is good practice to ensure closing/destruction of all cursors and transactions happen in the correct order, as shown in the motivating example. This is because you may change a read-only transaction to a read-write transaction in the future.
 
 
 ## Error Handling
@@ -341,7 +348,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
 * The cursor interface has been completed. `put`, `del`, and `count` have been added, bringing us to parity with the LMDB API.
 
-  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should now do this directly, and you can now choose between `MDB_SET`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
+  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should now do this directly, and consider the differences between `MDB_SET`, `MDB_SET_KEY`, and `MDB_GET_BOTH_RANGE`.
 
   Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
 
