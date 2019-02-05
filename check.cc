@@ -117,7 +117,7 @@ int main() {
         auto cursor = lmdb::cursor::open(txn, mydbdups);
         std::string_view key("blah"), val;
 
-        if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
+        if (!cursor.get(key, val, MDB_SET_KEY)) throw std::runtime_error("cursor err 1");
         if (!cursor.get(key, val, MDB_FIRST_DUP)) throw std::runtime_error("FIRST_DUP err");
 
         if (cursor.count() != 3) throw std::runtime_error("cursor.count error");
@@ -155,7 +155,7 @@ int main() {
         auto cursor = lmdb::cursor::open(txn, mydbdups);
         std::string_view key("blah"), val;
 
-        if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
+        if (!cursor.get(key, val, MDB_SET_KEY)) throw std::runtime_error("cursor err 1");
         if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
 
         if (cursor.count() != 2) throw std::runtime_error("cursor.count error");
@@ -169,6 +169,37 @@ int main() {
         txn.commit();
     }
 
+
+
+    // to_sv / from_sv
+
+    {
+        auto txn = lmdb::txn::begin(env);
+
+        //auto l = lmdb::to_sv<uint64_t>(0x1122334455667788);
+        //mydb.put(txn, "to_sv_key", l);
+
+        mydb.put(txn, "to_sv_key", lmdb::to_sv<uint64_t>(0x1122334455667788));
+
+        int16_t v = -19288;
+        mydb.put(txn, "to_sv_key2", lmdb::ptr_to_sv(&v));
+
+        txn.commit();
+    }
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+
+        std::string_view v;
+        if (!mydb.get(txn, "to_sv_key", v)) throw std::runtime_error("bad read to_sv 1");
+        if (lmdb::from_sv<uint64_t>(v) != 0x1122334455667788) throw std::runtime_error("bad read to_sv 2");
+
+        if (!mydb.get(txn, "to_sv_key2", v)) throw std::runtime_error("bad read to_sv 3");
+        if (lmdb::from_sv<int16_t>(v) != -19288) throw std::runtime_error("bad read to_sv 4");
+
+        int16_t *ptr = lmdb::ptr_from_sv<int16_t>(v);
+        if (*ptr != -19288) throw std::runtime_error("bad read to_sv 5");
+    }
 
 
 

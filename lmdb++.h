@@ -30,7 +30,6 @@
 #include <cstdio>      /* for std::snprintf() */
 #include <stdexcept>   /* for std::runtime_error */
 #include <string_view> /* for std::string_view */
-#include <type_traits> /* for std::is_pod<> */
 #include <limits>      /* for std::numeric_limits<> */
 
 namespace lmdb {
@@ -1635,6 +1634,50 @@ public:
     return countp;
   }
 };
+
+namespace lmdb {
+  /**
+   * Creates a std::string_view that points to the memory pointed to by v.
+   *
+   * @param v
+   */
+  template<typename T>
+  static inline std::string_view ptr_to_sv(T* v) {
+    return std::string_view(reinterpret_cast<char*>(v), sizeof(*v));
+  }
+
+  /**
+   * Creates a std::string_view that points to a temporary copy of v.
+   *
+   * @param v
+   */
+  template<typename T>
+  static inline std::string_view to_sv(T v) {
+    return std::string_view(reinterpret_cast<char*>(&v), sizeof(v));
+  }
+
+  /**
+   * Takes a std::string_view and casts its pointer as a pointer to the parameterized type.
+   *
+   * @param v
+   */
+  template<typename T>
+  static inline T* ptr_from_sv(std::string_view v) {
+    if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
+    return reinterpret_cast<T*>(const_cast<char*>(v.data()));
+  }
+
+  /**
+   * Takes a std::string_view and dereferences it, returning a value of the parameterized type.
+   *
+   * @param v
+   */
+  template<typename T>
+  static inline T from_sv(std::string_view v) {
+    if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
+    return *(reinterpret_cast<T*>(const_cast<char*>(v.data())));
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
