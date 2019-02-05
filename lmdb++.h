@@ -1388,7 +1388,9 @@ public:
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val dataV{data.size(), const_cast<char*>(data.data())};
     bool ret = lmdb::dbi_get(txn, handle(), &keyV, &dataV);
-    data = std::string_view(static_cast<char*>(dataV.mv_data), dataV.mv_size);
+    if (ret) {
+        data = std::string_view(static_cast<char*>(dataV.mv_data), dataV.mv_size);
+    }
     return ret;
   }
 
@@ -1602,17 +1604,19 @@ public:
   /**
    * Stores key/data pairs into the database. The cursor is positioned at the new item, or on failure usually near it.
    *
+   * See MDB docs for flag values.
+   *
    * @param key
    * @param val
-   * @param op
+   * @param flags
    * @throws lmdb::error on failure
    */
   void put(const std::string_view &key,
            const std::string_view &val,
-           const MDB_cursor_op op) {
+           const unsigned int flags = 0) {
     MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val valV{val.size(), const_cast<char*>(val.data())};
-    lmdb::cursor_put(handle(), &keyV, &valV, op);
+    lmdb::cursor_put(handle(), &keyV, &valV, flags);
   }
 
   /**
