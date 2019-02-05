@@ -36,11 +36,11 @@ check: check.o testdb
 	$(CXX) $(LDFLAGS) -o $@ check.o $(LDADD) && ./$@
 
 testdb:
-	mkdir -p testdb/
-	rm -f testdb/data.mdb testdb/lock.mdb
+	$(MKDIR) testdb/
+	$(RM) testdb/data.mdb testdb/lock.mdb
 
 example: example.o
-	mkdir -p example.mdb/
+	$(MKDIR) example.mdb/
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDADD) && ./$@
 
 %.o: %.cc lmdb++.h
