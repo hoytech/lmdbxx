@@ -121,7 +121,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
   You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
 
-  If you do want to store raw PODs or structs in your database, see the `from_sv` and `to_sv` methods described in (string_view Conversions)[#string_view-conversions].
+  If you do want to store raw PODs or structs in your database, see the `from_sv` and `to_sv` methods described in [string_view Conversions](#string_view-conversions).
 
 * The cursor methods have been completed. `put`, `del`, and `count` have been added, completing the LMDB cursor interface.
 
@@ -161,13 +161,13 @@ Arto's original version of this library had templated `get` and `put` methods. T
 
 ### Copying
 
-For example, suppose you want to store raw `uint64_t` values in a table. You can use the `to_sv` function to create a `string_view`:
+For example, suppose you want to store raw `uint64_t` values in a DB. You can use the `to_sv` function to create a `string_view` which can then be passed to a `put` method:
 
       mydb.put(txn, "some_key", lmdb::to_sv<uint64_t>(123456));
 
 Be aware that the above will do a temporary copy of the parameter. You should ensure that you don't use the returned `string_view` outside of the current scope.
 
-Afterwards, you can access the value with `from_sv`:
+Afterwards, you can `get` the value back out of the DB and extract the `uint64_t` with `from_sv`:
 
       std::string_view view;
       mydb.get(txn, "some_key", view);
@@ -179,23 +179,22 @@ Note that this copies the memory from the database and returns this copy for you
 
 ### Pointer-based
 
-If you wish to avoid the copying and have the `string_view` point directly to an existing block of memory, you can use `ptr_to_sv`:
+If you wish to avoid the copying and have the `string_view` point directly to an existing block of memory, you can use `ptr_to_sv` (note that the templated type is optional here since it can be inferred from the pointer type):
 
       uint64_t val = 123456;
       mydb.put(txn, "some_key", lmdb::ptr_to_sv(&val));
 
 Note that you are responsible for managing the backing memory, and you should ensure that it is valid for as long as you need the constructed `string_view`.
 
-Similarly, you can cast a pointer directly into the LMDB mapped memory by using `ptr_from_sv`:
-After you have stored a value, you can access it with `from_sv`:
+Similarly, you can get a pointer pointing into the LMDB mapped memory by using `ptr_from_sv`:
 
       std::string_view view;
       mydb.get(txn, "some_key", view);
       uint64_t *ptr = lmdb::ptr_from_sv<uint64_t>(view);
 
-`ptr_from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
-
 Since the returned pointer is pointing into LMDB's mapped memory, you should not use this pointer after the transaction has been terminated, or after performing any write operations on the DB.
+
+As with `from_sv`, `ptr_from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
 
 
 ## Interfaces
