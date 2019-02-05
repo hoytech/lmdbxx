@@ -97,9 +97,9 @@ satisfied by installing the `liblmdb-dev` package.
 This C++17 version is a fork of Arto Bendiken's C++11 version with the following changes:
 
 * `lmdb::val` has been removed and replaced with `std::string_view`.
-  This results in less copying in some cases. For example, you can pass a `string::view` that is pointing into LMDB's memory directly to a C++ function that expects an `std::string`. See the motivating example above for a situation where the `std::string_view` is passed directly to `cout`.
+  This results in less copying in some cases. For example, you can pass a `string::view` that is pointing into LMDB's memory directly to a JSON parser routine without first copying it into a `std::string`.
 
-  The standard LMDB caveats apply: If you need to keep this string around after closing the transaction (or performing any write operation on the DB) then be sure to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
+  The standard LMDB caveats apply: If you need to keep this string around after closing the transaction (or performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
 
       std::string longLivedValue;
 
@@ -115,18 +115,26 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
     In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `const char *`, `char *`, `std::string`, and maybe others.
 
-* The templated `get` and `put` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
+* The templated versions of the `get` and `put` methods have been removed. These convenience methods would let users pass in any type and an `lmdb::val` would be created pointing to the memory with the size set to `sizeof(type)`. You had to be very careful when using these methods since if you used any pointers in your structures then you would almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
 
   I have never had any desire to use this functionality, and it reduces type safety and causes [problems for some users](https://github.com/drycpp/lmdbxx/issues/1).
 
-  You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, reordering, etc.
+  You can get almost all the performance benefit of this functionality by using [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/) to serialise your data structures. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
 
   Of course if you really want to store raw structs in your database you can still do so by casting a pointer and putting it into a `string_view`:
 
       // Please don't do stuff like this:
       std::string_view val(reinterpret_cast<char*>(&myObject), sizeof(myObject));
 
-* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with a move or move-assignment before using them, for example:
+* The cursor methods have been completed. `put`, `del`, and `count` have been added, completing the LMDB cursor interface.
+
+  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should do this directly now, and you instead have the option of using `MDB_SET_KEY`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
+
+  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
+
+* Added a version of `del` to the dbi resource interface that lets you pass in a value as well as a key. Now you can delete sorted dup items via the dbi resource interface.
+
+* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with move or move-assignment first, for example:
 
       lmdb::dbi mydb;
 
@@ -139,14 +147,6 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
       }
 
       // now mydb is safe to use
-
-* The cursor methods have been completed. `put`, `del`, and `count` have been added, completing the LMDB cursor interface.
-
-  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should do this directly now, and you you additionally have the option of using `MDB_SET_KEY`, `MDB_SET_KEY`, or `MDB_GET_BOTH_RANGE`.
-
-  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
-
-* Added a version of `del` to the dbi resource interface that lets you pass in a value as well as a key. Now you can delete sorted dup items via the dbi resource interface.
 
 * Considerably expanded the test suite.
 
