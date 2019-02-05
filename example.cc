@@ -5,21 +5,34 @@
         /* Create and open the LMDB environment: */
         auto env = lmdb::env::create();
         env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
-        env.open("./example.mdb", 0, 0664);
+        env.open("./example.mdb/", 0, 0664);
 
-        // Inserting some key/value pairs in a write transaction:   
+        // Inserting some key/value pairs in a write transaction:
         {
             auto wtxn = lmdb::txn::begin(env);
             auto dbi = lmdb::dbi::open(wtxn, nullptr);
 
             dbi.put(wtxn, "username", "jhacker");
-            dbi.put(wtxn, "email", "jhacker@example.org");
-            dbi.put(wtxn, "fullname", "J. Random Hacker");
+            dbi.put(wtxn, "email",    std::string("jhacker@example.org"));
+            dbi.put(wtxn, "fullname", std::string_view("J. Random Hacker"));
 
             wtxn.commit();
        }
 
-       // In a read-only transaction, print out all the values using a cursor:
+       // In a read-only transaction, get and print one of the values:
+       {
+           auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+           auto dbi = lmdb::dbi::open(rtxn, nullptr);
+
+           std::string_view email;
+           if (dbi.get(rtxn, "email", email)) {
+               std::cout << "The email is: " << email << std::endl;
+           } else {
+               std::cout << "email not found!" << std::endl;
+           }
+       } // rtxn aborted automatically
+
+       // Print out all the values using a cursor:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
            auto dbi = lmdb::dbi::open(rtxn, nullptr);
@@ -34,11 +47,7 @@
                    } while (cursor.get(key, value, MDB_NEXT));
                }
            } // destroying cursor before committing/aborting transaction (see below)
-
-           rtxn.abort();
        }
 
-        /* The enviroment is closed automatically. */
-
         return 0;
-    }
+    } // enviroment closed automatically
