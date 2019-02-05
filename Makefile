@@ -40,6 +40,7 @@ testdb:
 	rm -f testdb/data.mdb testdb/lock.mdb
 
 example: example.o
+	mkdir -p example.mdb/
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDADD) && ./$@
 
 %.o: %.cc lmdb++.h
