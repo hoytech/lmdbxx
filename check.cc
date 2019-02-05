@@ -120,10 +120,14 @@ int main() {
         if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
         if (!cursor.get(key, val, MDB_FIRST_DUP)) throw std::runtime_error("FIRST_DUP err");
 
+        if (cursor.count() != 3) throw std::runtime_error("cursor.count error");
+
         if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
 
         if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 3");
         if (key != "blah" || val != "abc2") throw std::runtime_error("cursor err 4");
+
+        if (cursor.count() != 3) throw std::runtime_error("cursor.count error");
 
         if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 5");
         if (key != "blah" || val != "abc3") throw std::runtime_error("cursor err 6");
@@ -153,6 +157,8 @@ int main() {
 
         if (!cursor.get(key, val, MDB_SET)) throw std::runtime_error("cursor err 1");
         if (key != "blah" || val != "abc1") throw std::runtime_error("cursor err 2");
+
+        if (cursor.count() != 2) throw std::runtime_error("cursor.count error");
 
         if (!cursor.get(key, val, MDB_NEXT_DUP)) throw std::runtime_error("cursor err 5");
         if (key != "blah" || val != "abc3") throw std::runtime_error("cursor err 6");

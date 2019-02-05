@@ -1569,40 +1569,14 @@ public:
    * @param op
    * @throws lmdb::error on failure
    */
-  bool get(MDB_val* const key,
-           const MDB_cursor_op op) {
-    return get(key, nullptr, op);
-  }
-
-  /**
-   * Retrieves a key from the database.
-   *
-   * @param key
-   * @param op
-   * @throws lmdb::error on failure
-   */
   bool get(std::string_view &key,
            const MDB_cursor_op op) {
     MDB_val keyV{key.size(), const_cast<char*>(key.data())};
-    bool ret = get(&keyV, nullptr, op);
+    bool ret = lmdb::cursor_get(handle(), &keyV, nullptr, op);
     if (ret) {
         key = std::string_view(static_cast<char*>(keyV.mv_data), keyV.mv_size);
     }
     return ret;
-  }
-
-  /**
-   * Retrieves a key/value pair from the database.
-   *
-   * @param key
-   * @param val (may be `nullptr`)
-   * @param op
-   * @throws lmdb::error on failure
-   */
-  bool get(MDB_val* const key,
-           MDB_val* const val,
-           const MDB_cursor_op op) {
-    return lmdb::cursor_get(handle(), key, val, op);
   }
 
   /**
@@ -1624,6 +1598,41 @@ public:
         val = std::string_view(static_cast<char*>(valV.mv_data), valV.mv_size);
     }
     return ret;
+  }
+
+  /**
+   * Stores key/data pairs into the database. The cursor is positioned at the new item, or on failure usually near it.
+   *
+   * @param key
+   * @param val
+   * @param op
+   * @throws lmdb::error on failure
+   */
+  void put(const std::string_view &key,
+           const std::string_view &val,
+           const MDB_cursor_op op) {
+    MDB_val keyV{key.size(), const_cast<char*>(key.data())};
+    MDB_val valV{val.size(), const_cast<char*>(val.data())};
+    lmdb::cursor_put(handle(), &keyV, &valV, op);
+  }
+
+  /**
+   * Delete current key/data pair.
+   *
+   * @param flags Options for this operation. Values:
+   *   MDB_NODUPDATA - delete all of the data items for the current key. This flag may only be specified if the database was opened with MDB_DUPSORT.
+   */
+  void del(unsigned int flags = 0) {
+    lmdb::cursor_del(handle(), flags);
+  }
+
+  /**
+   * Return count of duplicates for current key. This call is only valid on databases that support sorted duplicate data items MDB_DUPSORT.
+   */
+  size_t count() {
+    std::size_t countp;
+    lmdb::cursor_count(handle(), countp);
+    return countp;
   }
 };
 
