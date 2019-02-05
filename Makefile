@@ -56,15 +56,7 @@ uninstall:
 	$(RM) $(DESTDIR)$(includedir)/lmdb++.h
 
 clean:
-	$(RM) README.html README.md check example $(PACKAGE_TARSTRING).tar.* *.o *~
-
-README: README.html README.md
-
-README.html: README.rst
-	pandoc -s -f rst -t html5 -S -o $@ $<
-
-README.md: README.rst
-	pandoc -s -f rst -t markdown_github -o - $< | tail -n +5 > $@
+	$(RM) README.html check example $(PACKAGE_TARSTRING).tar.* *.o *~
 
 doxygen: README.md
 	doxygen Doxyfile
