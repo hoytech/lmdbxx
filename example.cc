@@ -6,11 +6,12 @@
         auto env = lmdb::env::create();
         env.set_mapsize(1UL * 1024UL * 1024UL * 1024UL); /* 1 GiB */
         env.open("./example.mdb/", 0, 0664);
+        lmdb::dbi dbi;
 
-        // Inserting some key/value pairs in a write transaction:
+        // Get the dbi handle, and insert some key/value pairs in a write transaction:
         {
             auto wtxn = lmdb::txn::begin(env);
-            auto dbi = lmdb::dbi::open(wtxn, nullptr);
+            dbi = lmdb::dbi::open(wtxn, nullptr);
 
             dbi.put(wtxn, "username", "jhacker");
             dbi.put(wtxn, "email",    std::string("jhacker@example.org"));
@@ -22,7 +23,6 @@
        // In a read-only transaction, get and print one of the values:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-           auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
            std::string_view email;
            if (dbi.get(rtxn, "email", email)) {
@@ -35,7 +35,6 @@
        // Print out all the values using a cursor:
        {
            auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-           auto dbi = lmdb::dbi::open(rtxn, nullptr);
 
            {
                auto cursor = lmdb::cursor::open(rtxn, dbi);
