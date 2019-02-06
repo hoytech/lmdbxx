@@ -346,11 +346,11 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
 * The templated versions of the `get` and `put` methods have been removed. See the conversion methods described in [string_view Conversions](#string_view-conversions) for an alternative.
 
-* The cursor interface has been completed. `put`, `del`, and `count` have been added, bringing us to parity with the LMDB API.
-
-  The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should now do this directly, and consider the differences between `MDB_SET`, `MDB_SET_KEY`, and `MDB_GET_BOTH_RANGE`.
-
-  Also, the option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
+* Changes to cursor API
+    * The cursor interface has been completed. `put`, `del`, and `count` have been added, bringing us to parity with the LMDB API.
+    * The cursor `find` method has been removed. This method did not correspond to any function in LMDB API. All it did was a `get` with a cursor op of `MDB_SET`. You should now do this directly, and consider the differences between `MDB_SET`, `MDB_SET_KEY`, and `MDB_GET_BOTH_RANGE`.
+    * The option of passing `MDB_val*` in via the cursor resource interface has been removed. Now you must use `std::string_view`. Of course the procedural interface still lets you use raw `MDB_val*`s if you want.
+    * `cursor_put` returns `bool` to propagate the condition that the key already exists and either MDB_NODUPDATA or MDB_NOOVERWRITE were set. This makes it consistent with `cursor_get`.
 
 * A `del` method has been added to the `lmdb::dbi` resource interface that lets you pass in a value as well as a key so that you can delete sorted dup items via dbi objects.
 
