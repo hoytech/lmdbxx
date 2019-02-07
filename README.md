@@ -106,11 +106,11 @@ satisfied by installing the `liblmdb-dev` package.
 
 LMDB uses a simple struct named `MDB_val` which contains only a `void *` and a `size_t`. This is what it uses to represent both keys and values in all functions. As of C++17, there is a standard type known as [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view) which also contains only a pointer and a size. In the resource interface of this library, `std::string_view` is used for all keys and values.
 
-The nice aspect about `std::string_view` objects is that they are compatible with everything else in C++. You can pass them to any method that accepts an `std::string`. Unfortunately, in those cases an `std::string` object will be created which involves the data being copied from the LMDB memory map to a new allocation on the heap (unless your string is small, then there may be [small string optimisation](https://stackoverflow.com/questions/21694302/what-are-the-mechanics-of-short-string-optimization-in-libc)).
+The nice aspect about `std::string_view` objects is that they are compatible with everything else in C++. You can easily construct `std::string`s from them, ie `std::string(my_stringview)`. Unfortunately, that involves copying the data from the LMDB memory map to a new allocation on the heap (unless your string is short, then there may be [short string optimisation](https://stackoverflow.com/questions/21694302/what-are-the-mechanics-of-short-string-optimization-in-libc)).
 
 However, with some care `std::string_view` lets you avoid copying in several cases. For example, you can take zero-copy substrings by using `substr()`. Many modern C++ libraries are now being designed to reduce or eliminate copying by accepting or returning `std::string_view` objects, for example the [TAO C++ JSON parser](https://github.com/taocpp/json) and the [flatbuffers serialisation system](http://google.github.io/flatbuffers/).
 
-When getting an `std::string_view`, the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or after performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
+With `std::string_view` the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or after performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
 
     std::string longLivedValue;
 
@@ -124,16 +124,16 @@ When getting an `std::string_view`, the standard LMDB caveats apply: If you need
         longLivedValue = v;
     }
 
-In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, `const std::string&`, etc.
+In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, etc.
 
 
 ### string_view Conversions
 
 Arto's original version of this library had templated `get` and `put` convenience methods. These methods reduced type safety and [caused problems for some users](https://github.com/drycpp/lmdbxx/issues/1) so this fork has removed them in favour of explicit methods to convert to and from `std::string_view`s.
 
-**Note:** These conversion functions described in this section are mostly designed for storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/). With these you can get almost all the performance benefit of storing raw structs. In addition you will get much better safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
+**Note:** These conversion functions described in this section are mostly designed for storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/). With these you can get almost all the performance benefit of storing raw structs. In addition you will get more safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
 
-If you do decide to store complex structs directly, you have to be very careful when using the following methods. If you have any pointers in your structures then you will almost certainly experience weird values in your stored records, out-of-bounds memory accesses, and/or memory corruption.
+If you do decide to store complex structs directly, you have to be very careful when using the following methods. If you have any pointers in your structures then you will almost certainly experience out-of-bounds memory accesses, and/or memory corruption.
 
 #### Copying
 
@@ -141,7 +141,7 @@ For example, suppose you want to store raw `uint64_t` values in a DB. You can us
 
       mydb.put(txn, "some_key", lmdb::to_sv<uint64_t>(123456));
 
-Be aware that the above will do a temporary copy of the parameter. You should ensure that you don't use the returned `string_view` outside of the current scope.
+**NOTE:** The above will do a temporary copy of the parameter. You should ensure that you don't use the returned `string_view` outside of the current scope.
 
 Afterwards, you can `get` the value back out of the DB and extract the `uint64_t` with `from_sv`:
 
@@ -151,7 +151,7 @@ Afterwards, you can `get` the value back out of the DB and extract the `uint64_t
 
 `from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
 
-Note that this copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this doesn't make a difference, but for large structs you may want to use the pointer-based conversions described in the next section.
+This copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this doesn't make a difference, but for large structs you may want to use the pointer-based conversions described in the next section.
 
 #### Pointer-based
 
@@ -260,7 +260,7 @@ Consider this code:
         txn.commit();
     } // <-- BAD! cursor is destroyed here
 
-The above code will result in a double free. You can uncomment a test case in `example.cc` if you want to verify this for yourself. When compiled with `-fsanitize=address` you will see the following:
+The above code will result in a double free. You can uncomment a test case in `check.cc` if you want to verify this for yourself. When compiled with `-fsanitize=address` you will see the following:
 
     ==14400==ERROR: AddressSanitizer: attempting double-free on 0x614000000240 in thread T0:
 
@@ -341,7 +341,7 @@ Also see Arto's original [github](https://github.com/bendiken/lmdbxx) (not maint
 
 This C++17 version is a fork of Arto Bendiken's C++11 version with the following changes:
 
-* `lmdb::val` has been removed and replaced with `std::string_view`. See the [string::view section for more details](#string_view)
+* `lmdb::val` has been removed and replaced with `std::string_view`. See the [string::view section](#string_view) for more details.
 
 * The templated versions of the `get` and `put` methods have been removed. See the conversion methods described in [string_view Conversions](#string_view-conversions) for an alternative.
 
