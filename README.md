@@ -141,7 +141,7 @@ For example, suppose you want to store raw `uint64_t` values in a DB. You can us
 
       mydb.put(txn, "some_key", lmdb::to_sv<uint64_t>(123456));
 
-**NOTE:** The above will do a temporary copy of the parameter. You should ensure that you don't use the returned `string_view` outside of the current scope.
+**NOTE:** The above `to_sv` call will create a `std::string_view` pointing to a temporary object. You should ensure that you don't retain the `string_view` outside of the current "full expression", which in this case is the `mydb.put()`.
 
 Afterwards, you can `get` the value back out of the DB and extract the `uint64_t` with `from_sv`:
 
