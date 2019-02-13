@@ -203,6 +203,44 @@ int main() {
 
 
 
+    // Nested transactions
+
+    {
+        auto txn = lmdb::txn::begin(env);
+
+        {
+            auto txn2 = lmdb::txn::begin(env, txn);
+
+            mydb.put(txn2, "junk1", "blah");
+
+            txn2.abort();
+        }
+
+        {
+            auto txn2 = lmdb::txn::begin(env, txn);
+
+            mydb.put(txn2, "junk2", "bleh");
+
+            txn2.commit();
+        }
+
+        txn.commit();
+    }
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+
+        std::string_view v;
+
+        if (mydb.get(txn, "junk1", v)) throw std::runtime_error("bad nested tx 1");
+
+        if (!mydb.get(txn, "junk2", v)) throw std::runtime_error("bad nested tx 2");
+        if (v != "bleh") throw std::runtime_error("bad nested tx 3");
+    }
+
+
+
+
     // This test case crashes. See README.md
 
     if (0) {
