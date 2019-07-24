@@ -28,6 +28,7 @@
 #endif
 #include <cstddef>     /* for std::size_t */
 #include <cstdio>      /* for std::snprintf() */
+#include <cstring>     /* for std::memcpy() */
 #include <stdexcept>   /* for std::runtime_error */
 #include <string_view> /* for std::string_view */
 #include <limits>      /* for std::numeric_limits<> */
@@ -1680,7 +1681,9 @@ namespace lmdb {
   template<typename T>
   static inline T from_sv(std::string_view v) {
     if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
-    return *(reinterpret_cast<T*>(const_cast<char*>(v.data())));
+    T ret;
+    std::memcpy(&ret, const_cast<char*>(v.data()), sizeof(T));
+    return ret;
   }
 }
 
