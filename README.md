@@ -149,9 +149,9 @@ Afterwards, you can `get` the value back out of the DB and extract the `uint64_t
       mydb.get(txn, "some_key", view);
       uint64_t val = lmdb::from_sv<uint64_t>(view);
 
-`from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
-
 This copies the memory from the database and returns this copy for you to use. In the case of simple data-types like `uint64_t` this doesn't make a difference, but for large structs you may want to use the pointer-based conversions described in the next section.
+
+`from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes). You should also use this method if you wish to ensure that your value is correctly aligned prior to accessing it since LMDB only guarantees 2-byte alignment of keys, unless you are [careful with the sizes of your keys and data](https://www.reddit.com/r/programming/comments/1daiu8/interesting_fast_and_small_keyvalue_data_store/c9p8ml1/).
 
 #### Pointer-based
 
