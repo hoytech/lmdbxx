@@ -12,8 +12,8 @@ DESTDIR  :=
 PREFIX   := /usr/local
 
 CPPFLAGS := -I.
-CXXFLAGS := -g -O2 -std=c++17 -Wall -Werror -fsanitize=address
-LDFLAGS  := -fsanitize=address
+CXXFLAGS := -g -O2 -std=c++17 -Wall -Werror -fsanitize=address -fsanitize=undefined
+LDFLAGS  := -fsanitize=address -fsanitize=undefined
 LDADD    := -llmdb
 
 includedir = $(PREFIX)/include
