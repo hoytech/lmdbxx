@@ -176,13 +176,21 @@ int main() {
     {
         auto txn = lmdb::txn::begin(env);
 
-        //auto l = lmdb::to_sv<uint64_t>(0x1122334455667788);
-        //mydb.put(txn, "to_sv_key", l);
+        // DON'T DO THIS: the r-value is destroyed at the end of the full expression
+        //auto my_sv = lmdb::to_sv<uint64_t>(0x1122334455667788);
+        //mydb.put(txn, "to_sv_key", my_sv);
 
+        // OK: The rvalue will stay alive until the end of the "full-expression" (mydb.put(...))
         mydb.put(txn, "to_sv_key", lmdb::to_sv<uint64_t>(0x1122334455667788));
 
+        // OK: temp stays alive until the end of its scope
+        uint64_t temp = 0x8877665544332211;
+        auto my_sv = lmdb::to_sv(temp);
+        mydb.put(txn, "to_sv_key2", my_sv);
+
+        // OK: v stays alive until the end of its scope
         int16_t v = -19288;
-        mydb.put(txn, "to_sv_key2", lmdb::ptr_to_sv(&v));
+        mydb.put(txn, "to_sv_key3", lmdb::ptr_to_sv(&v));
 
         txn.commit();
     }
@@ -194,11 +202,14 @@ int main() {
         if (!mydb.get(txn, "to_sv_key", v)) throw std::runtime_error("bad read to_sv 1");
         if (lmdb::from_sv<uint64_t>(v) != 0x1122334455667788) throw std::runtime_error("bad read to_sv 2");
 
-        if (!mydb.get(txn, "to_sv_key2", v)) throw std::runtime_error("bad read to_sv 3");
-        if (lmdb::from_sv<int16_t>(v) != -19288) throw std::runtime_error("bad read to_sv 4");
+        if (!mydb.get(txn, "to_sv_key2", v)) throw std::runtime_error("bad read to_sv 2");
+        if (lmdb::from_sv<uint64_t>(v) != 0x8877665544332211) throw std::runtime_error("bad read to_sv 3");
+
+        if (!mydb.get(txn, "to_sv_key3", v)) throw std::runtime_error("bad read to_sv 4");
+        if (lmdb::from_sv<int16_t>(v) != -19288) throw std::runtime_error("bad read to_sv 5");
 
         int16_t *ptr = lmdb::ptr_from_sv<int16_t>(v);
-        if (*ptr != -19288) throw std::runtime_error("bad read to_sv 5");
+        if (*ptr != -19288) throw std::runtime_error("bad read to_sv 6");
     }
 
 

@@ -32,6 +32,7 @@
 #include <stdexcept>   /* for std::runtime_error */
 #include <string_view> /* for std::string_view */
 #include <limits>      /* for std::numeric_limits<> */
+#include <memory>      /* for std::addressof */
 
 namespace lmdb {
   using mode = mdb_mode_t;
@@ -1653,13 +1654,13 @@ namespace lmdb {
   }
 
   /**
-   * Creates a std::string_view that points to a temporary copy of v.
+   * Creates a std::string_view that points to the memory occupied by v.
    *
    * @param v
    */
   template<typename T>
-  static inline std::string_view to_sv(T v) {
-    return std::string_view(reinterpret_cast<char*>(&v), sizeof(v));
+  static inline std::string_view to_sv(const T &v) {
+    return std::string_view(reinterpret_cast<const char*>(std::addressof(v)), sizeof(v));
   }
 
   /**
