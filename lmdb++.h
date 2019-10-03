@@ -1235,7 +1235,6 @@ namespace lmdb {
 /**
  * Resource class for `MDB_dbi` handles.
  *
- * @note Instances of this class are movable, but not copyable.
  * @see http://symas.com/mdb/doc/group__mdb.html#gadbe68a06c448dfb62da16443d251a78b
  */
 class lmdb::dbi {
@@ -1278,23 +1277,6 @@ public:
    */
   dbi(const MDB_dbi handle) noexcept
     : _handle{handle} {}
-
-  /**
-   * Move constructor.
-   */
-  dbi(dbi&& other) noexcept {
-    std::swap(_handle, other._handle);
-  }
-
-  /**
-   * Move assignment operator.
-   */
-  dbi& operator=(dbi&& other) noexcept {
-    if (this != &other) {
-      std::swap(_handle, other._handle);
-    }
-    return *this;
-  }
 
   /**
    * Destructor.

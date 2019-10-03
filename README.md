@@ -353,7 +353,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
 * A `del` method has been added to the `lmdb::dbi` resource interface that lets you pass in a value as well as a key so that you can delete sorted dup items via dbi objects.
 
-* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them with move or move-assignment first, for example:
+* `lmdb::dbi` instances can now be constructed uninitialized. Attempting to use them in this state will result in an error. You should initialize them first, for example:
 
       lmdb::dbi mydb;
 
@@ -366,6 +366,8 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
       }
 
       // now mydb is safe to use
+
+* `lmdb::dbi` instances can now be copied.
 
 * Considerably expanded the test suite.
 
