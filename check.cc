@@ -224,7 +224,26 @@ int main() {
 
             mydb.put(txn2, "junk1", "blah");
 
+            {
+                // Can't use the parent txn when child active
+                bool caught = false;
+
+                try {
+                    std::string_view v;
+                    mydb.get(txn, "junk1", v);
+                } catch (std::exception &e) {
+                    caught = true;
+                }
+
+                if (!caught) throw std::runtime_error("bad nested tx 0");
+            }
+
             txn2.abort();
+        }
+
+        {
+            std::string_view v;
+            if (mydb.get(txn, "junk1", v)) throw std::runtime_error("bad nested tx 1");
         }
 
         {
@@ -235,6 +254,24 @@ int main() {
             txn2.commit();
         }
 
+        {
+            std::string_view v;
+            if (!mydb.get(txn, "junk2", v)) throw std::runtime_error("bad nested tx 2");
+        }
+
+        {
+            // Creating a read-only sub-transaction inside a read-write transaction
+            bool caught = false;
+
+            try {
+                auto txn2 = lmdb::txn::begin(env, txn, MDB_RDONLY);
+            } catch (std::exception &e) {
+                caught = true;
+            }
+
+            if (!caught) throw std::runtime_error("bad nested tx 2.1");
+        }
+
         txn.commit();
     }
 
@@ -243,10 +280,23 @@ int main() {
 
         std::string_view v;
 
-        if (mydb.get(txn, "junk1", v)) throw std::runtime_error("bad nested tx 1");
+        if (mydb.get(txn, "junk1", v)) throw std::runtime_error("bad nested tx 3");
 
-        if (!mydb.get(txn, "junk2", v)) throw std::runtime_error("bad nested tx 2");
+        if (!mydb.get(txn, "junk2", v)) throw std::runtime_error("bad nested tx 4");
         if (v != "bleh") throw std::runtime_error("bad nested tx 3");
+
+
+        // trying to create a non-readonly sub-tx
+
+        bool caught = false;
+
+        try {
+            auto txn2 = lmdb::txn::begin(env, txn);
+        } catch (std::exception &e) {
+            caught = true;
+        }
+
+        if (!caught) throw std::runtime_error("bad nested tx 5");
     }
 
 
