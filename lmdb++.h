@@ -256,7 +256,7 @@ namespace lmdb {
 #endif
   // TODO: mdb_env_set_assert()
   // TODO: mdb_reader_list()
-  // TODO: mdb_reader_check()
+  static inline void reader_check(MDB_env *env, int *dead);
 }
 
 /**
@@ -516,6 +516,14 @@ lmdb::env_get_userctx(MDB_env* const env) {
   return ::mdb_env_get_userctx(env);
 }
 #endif
+
+static inline void
+lmdb::reader_check(MDB_env *env, int *dead) {
+  const int rc = ::mdb_reader_check(env, dead);
+  if (rc != MDB_SUCCESS) {
+    error::raise("reader_check", rc);
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Procedural Interface: Transactions */
@@ -1036,6 +1044,12 @@ public:
       lmdb::env_close(handle());
       _handle = nullptr;
     }
+  }
+
+  int reader_check() {
+    int dead;
+    lmdb::reader_check(handle(), &dead);
+    return dead;
   }
 
   /**
