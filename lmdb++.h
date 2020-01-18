@@ -15,10 +15,25 @@
 #error "<lmdb++.h> requires a C++ compiler"
 #endif
 
-#if __cplusplus < 201703L
-#ifndef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
-#error "<lmdb++.h> requires a C++17 compiler (CXXFLAGS='-std=c++17'); alternatively, use LMDBXX_USE_EXPERIMENTAL_STRING_VIEW but check the manual first"
+#ifdef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
+// forced by user?
+#include <experimental/string_view>
+#else
+
+#if __cplusplus >= 201703L
+#include <string_view> /* for std::string_view */
+#else
+#if __cplusplus >201103L
+#include <experimental/string_view>
+#if defined(__cpp_lib_experimental_string_view) && __cpp_lib_experimental_string_view >= 201411
+#define LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
 #endif
+#endif
+#endif
+#endif
+
+#if __cplusplus < 201703L && !defined(LMDBXX_USE_EXPERIMENTAL_STRING_VIEW)
+#error "<lmdb++.h> requires a C++17 compiler (CXXFLAGS='-std=c++17'); alternatively, use LMDBXX_USE_EXPERIMENTAL_STRING_VIEW but check the manual first"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +50,6 @@
 #ifdef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
 #include <experimental/string_view>
 #else
-#include <string_view> /* for std::string_view */
 #endif
 #include <limits>      /* for std::numeric_limits<> */
 #include <memory>      /* for std::addressof */

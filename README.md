@@ -8,6 +8,10 @@ This library is a fork of [Arto Bendiken](https://ar.to/)'s [lmdbxx C++11 librar
 The main difference is from Arto's version is that the `lmdb::val` class has been removed.
 Instead, all keys and values are [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view)s.
 See the [Fork Differences](#fork-differences) section for full details on what has been changed from Arto's version.
+As last-resort option for older compilers, there is also a possibility to use
+the
+[std::experimental::string_view](https://en.cppreference.com/w/cpp/experimental/basic_string_view)
+type as replacement for the C++17 standard version (see [string_view](#string_view) section for details.
 
 ## Example
 
@@ -110,6 +114,8 @@ The nice aspect about `std::string_view` objects is that they are compatible wit
 
 However, with some care `std::string_view` lets you avoid copying in several cases. For example, you can take zero-copy substrings by using `substr()`. Many modern C++ libraries are now being designed to reduce or eliminate copying by accepting or returning `std::string_view` objects, for example the [TAO C++ JSON parser](https://github.com/taocpp/json) and the [flatbuffers serialisation system](http://google.github.io/flatbuffers/).
 
+For legacy compatibility reasons, the `lmdb::string_view` type definition exists, which shall preferably be used when interacting with lmdbxx API. This type is automatically mapped to `std::string_view` or `std::experimental::string_view` (see below).
+
 With `std::string_view` the standard LMDB caveats apply: If you need to keep the data around after closing the LMDB transaction (or after performing any write operation on the DB) then you need to make a copy. This is as easy as assigning the `std::string_view` to an `std::string`.
 
     std::string longLivedValue;
@@ -126,6 +132,7 @@ With `std::string_view` the standard LMDB caveats apply: If you need to keep the
 
 In the code above, note that `"hello"` was passed in as a key. This works because a `std::string_view` is implicitly constructed. This works for `char *`, `std::string`, etc.
 
+In case pre-C++17 toolchains need to be supported, the library header will attempt to check the availability of the `std::experimental::string_view` type. The switch can also be enforced by setting the `LMDBXX_USE_EXPERIMENTAL_STRING_VIEW` compiler definition.
 
 ### string_view Conversions
 
