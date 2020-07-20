@@ -1253,7 +1253,7 @@ namespace lmdb {
  */
 class lmdb::dbi {
 protected:
-  MDB_dbi _handle{std::numeric_limits<MDB_dbi>::max()};
+  MDB_dbi _handle{(std::numeric_limits<MDB_dbi>::max)()};
 
 public:
   static constexpr unsigned int default_flags     = 0;
@@ -1282,7 +1282,7 @@ public:
    * @note Creates an uninitialized dbi instance. You must move or move-assign a valid dbi instance onto it before you can use it.
    */
   dbi() noexcept
-    : _handle{std::numeric_limits<MDB_dbi>::max()} {}
+    : _handle{(std::numeric_limits<MDB_dbi>::max)()} {}
 
   /**
    * Constructor.
