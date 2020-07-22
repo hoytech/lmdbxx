@@ -1208,8 +1208,9 @@ public:
    * @post `handle() == nullptr`
    */
   void commit() {
-    lmdb::txn_commit(_handle);
+    auto h = _handle;
     _handle = nullptr;
+    lmdb::txn_commit(h);
   }
 
   /**
@@ -1218,8 +1219,9 @@ public:
    * @post `handle() == nullptr`
    */
   void abort() noexcept {
-    lmdb::txn_abort(_handle);
+    auto h = _handle;
     _handle = nullptr;
+    lmdb::txn_abort(h);
   }
 
   /**
