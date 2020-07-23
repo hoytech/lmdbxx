@@ -322,5 +322,46 @@ int main() {
 
   if (longLivedValue != "world") throw std::runtime_error("bad longLivedValue");
 
+
+
+  if (0) {
+      // Enable this to verify the fix for https://github.com/hoytech/lmdbxx/pull/3
+      // This test is not run in the normal test-suite because the sizes chosen depend
+      // on internal LMDB layout, which could change.
+
+      if (system("rm testdb/data.mdb testdb/lock.mdb")) {
+        std::cerr << "Unable to delete DB files during test" << std::endl;
+        return 1;
+      }
+
+      auto env = lmdb::env::create();
+      env.set_max_dbs(64);
+      env.set_mapsize(30000);
+      env.open("testdb/");
+
+      lmdb::dbi mydb;
+
+      {
+          auto txn = lmdb::txn::begin(env);
+          mydb = lmdb::dbi::open(txn, "mydb", MDB_CREATE);
+          txn.commit();
+      }
+
+      {
+          auto txn = lmdb::txn::begin(env);
+
+          mydb.put(txn, "k", std::string(4000, '\x01'));
+
+          try {
+              txn.commit(); // <-- This throws MDB_MAP_FULL, which leaves the transaction "partially committed"
+          } catch (const lmdb::error& error) {
+              std::cerr << "Failed with error: " << error.what() << std::endl;
+              return 1;
+          }
+
+          // <-- The transaction is aborted here, which results in double-free
+      }
+  }
+
   return 0;
 }
