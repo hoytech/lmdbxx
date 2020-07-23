@@ -302,9 +302,11 @@ int main() {
 
 
 
-    // This test case crashes. See README.md
-
     if (0) {
+        // This test case is not enabled by default because it causes the process
+        // to crash. See the "Cursor double-free issue" section in README.md
+        std::cout << "Running optional test #1" << std::endl;
+
         auto txn = lmdb::txn::begin(env);
 
         auto cursor = lmdb::cursor::open(txn, mydb);
@@ -328,6 +330,7 @@ int main() {
       // Enable this to verify the fix for https://github.com/hoytech/lmdbxx/pull/3
       // This test is not run in the normal test-suite because the sizes chosen depend
       // on internal LMDB layout, which could change.
+      std::cout << "Running optional test #2" << std::endl;
 
       if (system("rm testdb/data.mdb testdb/lock.mdb")) {
         std::cerr << "Unable to delete DB files during test" << std::endl;
@@ -352,12 +355,15 @@ int main() {
 
           mydb.put(txn, "k", std::string(4000, '\x01'));
 
+          bool got_map_full_error = false;
+
           try {
               txn.commit(); // <-- This throws MDB_MAP_FULL, which leaves the transaction "partially committed"
-          } catch (const lmdb::error& error) {
-              std::cerr << "Failed with error: " << error.what() << std::endl;
-              return 1;
+          } catch (const lmdb::map_full_error& error) {
+              got_map_full_error = true;
           }
+
+          if (!got_map_full_error) throw std::runtime_error("didn't get expected lmdb::map_full_error");
 
           // <-- The transaction is aborted here, which results in double-free
       }
