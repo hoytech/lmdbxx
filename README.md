@@ -375,6 +375,7 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
 * Added a section to the docs describing the [cursor double-free issue](#cursor-double-free-issue).
 
+* If an exception was throw by `txn.commit()` (ie `MDB_MAP_FULL`), and this transaction was later aborted (because it went out of scope while unwinding the stack), then a double-free would occur. This was [fixed](https://github.com/hoytech/lmdbxx/pull/3) by Niklas Salmoukas.
 
 
 
