@@ -5,7 +5,7 @@ offering both an error-checked procedural interface and an object-oriented
 resource interface with [RAII](http://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization) semantics.
 
 This library is a fork of [Arto Bendiken](https://ar.to/)'s [lmdbxx C++11 library](https://github.com/drycpp/lmdbxx).
-The main difference is from Arto's version is that the `lmdb::val` class has been removed.
+The main difference from Arto's version is that the `lmdb::val` class has been removed.
 Instead, all keys and values are [std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view)s.
 See the [Fork Differences](#fork-differences) section for full details on what has been changed from Arto's version.
 
@@ -134,6 +134,8 @@ Arto's original version of this library had templated `get` and `put` convenienc
 **Note:** These conversion functions described in this section are mostly designed for storing integers in `MDB_INTEGERKEY`/`MDB_INTEGERDUP` databases. Although you can use them for more complicated types, we do not recommend doing so. Instead, please look into zero-copy serialization schemes such as [flatbuffers](https://google.github.io/flatbuffers/) or [capn proto](https://capnproto.org/). With these you can get almost all the performance benefit of storing raw structs. In addition you will get more safety, the ability to access your database from languages other than C/C++, database portability across systems, and a way to upgrade your structures by adding new fields, deprecating old ones, etc.
 
 If you do decide to store complex structs directly, you have to be very careful when using the following methods. If you have any pointers in your structures then you will almost certainly experience out-of-bounds memory accesses, and/or memory corruption.
+
+It is **strongly** recommended that you develop and test using [address sanitizer](https://en.wikipedia.org/wiki/AddressSanitizer) when working with these routines (and in general). This will help you detect problems early on during development. The `Makefile` compiles the `check.cpp` test suite with `-fsanitize=address` for this reason.
 
 #### Copying
 
