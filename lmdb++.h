@@ -15,8 +15,25 @@
 #error "<lmdb++.h> requires a C++ compiler"
 #endif
 
-#if __cplusplus < 201703L
-#error "<lmdb++.h> requires a C++17 compiler (CXXFLAGS='-std=c++17')"
+#ifdef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
+// forced by user?
+#include <experimental/string_view>
+#else
+
+#if __cplusplus >= 201703L
+#include <string_view> /* for std::string_view */
+#else
+#if __cplusplus >201103L
+#include <experimental/string_view>
+#if defined(__cpp_lib_experimental_string_view) && __cpp_lib_experimental_string_view >= 201411
+#define LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
+#endif
+#endif
+#endif
+#endif
+
+#if __cplusplus < 201703L && !defined(LMDBXX_USE_EXPERIMENTAL_STRING_VIEW)
+#error "<lmdb++.h> requires a C++17 compiler (CXXFLAGS='-std=c++17'); alternatively, use LMDBXX_USE_EXPERIMENTAL_STRING_VIEW but check the manual first"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,12 +47,20 @@
 #include <cstdio>      /* for std::snprintf() */
 #include <cstring>     /* for std::memcpy() */
 #include <stdexcept>   /* for std::runtime_error */
-#include <string_view> /* for std::string_view */
+#ifdef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
+#include <experimental/string_view>
+#else
+#endif
 #include <limits>      /* for std::numeric_limits<> */
 #include <memory>      /* for std::addressof */
 
 namespace lmdb {
   using mode = mdb_mode_t;
+#ifdef LMDBXX_USE_EXPERIMENTAL_STRING_VIEW
+  using string_view = std::experimental::string_view;
+#else
+  using string_view = std::string_view;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1384,13 +1409,13 @@ public:
    */
 
   bool get(MDB_txn* const txn,
-           const std::string_view key,
-           std::string_view& data) {
+           const lmdb::string_view key,
+           lmdb::string_view& data) {
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val dataV{data.size(), const_cast<char*>(data.data())};
     bool ret = lmdb::dbi_get(txn, handle(), &keyV, &dataV);
     if (ret) {
-        data = std::string_view(static_cast<char*>(dataV.mv_data), dataV.mv_size);
+        data = lmdb::string_view(static_cast<char*>(dataV.mv_data), dataV.mv_size);
     }
     return ret;
   }
@@ -1405,8 +1430,8 @@ public:
    * @throws lmdb::error on failure
    */
   bool put(MDB_txn* const txn,
-           const std::string_view key,
-           std::string_view data,
+           const lmdb::string_view key,
+           lmdb::string_view data,
            const unsigned int flags = default_put_flags) {
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val dataV{data.size(), const_cast<char*>(data.data())};
@@ -1421,7 +1446,7 @@ public:
    * @throws lmdb::error on failure
    */
   bool del(MDB_txn* const txn,
-           const std::string_view key) {
+           const lmdb::string_view key) {
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     return lmdb::dbi_del(txn, handle(), &keyV);
   }
@@ -1435,8 +1460,8 @@ public:
    * @throws lmdb::error on failure
    */
   bool del(MDB_txn* const txn,
-           const std::string_view key,
-           const std::string_view val) {
+           const lmdb::string_view key,
+           const lmdb::string_view val) {
     const MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     const MDB_val valV{val.size(), const_cast<char*>(val.data())};
     return lmdb::dbi_del(txn, handle(), &keyV, &valV);
@@ -1571,12 +1596,12 @@ public:
    * @param op
    * @throws lmdb::error on failure
    */
-  bool get(std::string_view &key,
+  bool get(lmdb::string_view &key,
            const MDB_cursor_op op) {
     MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     bool ret = lmdb::cursor_get(handle(), &keyV, nullptr, op);
     if (ret) {
-        key = std::string_view(static_cast<char*>(keyV.mv_data), keyV.mv_size);
+        key = lmdb::string_view(static_cast<char*>(keyV.mv_data), keyV.mv_size);
     }
     return ret;
   }
@@ -1589,15 +1614,15 @@ public:
    * @param op
    * @throws lmdb::error on failure
    */
-  bool get(std::string_view &key,
-           std::string_view &val,
+  bool get(lmdb::string_view &key,
+           lmdb::string_view &val,
            const MDB_cursor_op op) {
     MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val valV{val.size(), const_cast<char*>(val.data())};
     bool ret = lmdb::cursor_get(handle(), &keyV, &valV, op);
     if (ret) {
-        key = std::string_view(static_cast<char*>(keyV.mv_data), keyV.mv_size);
-        val = std::string_view(static_cast<char*>(valV.mv_data), valV.mv_size);
+        key = lmdb::string_view(static_cast<char*>(keyV.mv_data), keyV.mv_size);
+        val = lmdb::string_view(static_cast<char*>(valV.mv_data), valV.mv_size);
     }
     return ret;
   }
@@ -1612,8 +1637,8 @@ public:
    * @param flags
    * @throws lmdb::error on failure
    */
-  bool put(const std::string_view &key,
-           const std::string_view &val,
+  bool put(const lmdb::string_view &key,
+           const lmdb::string_view &val,
            const unsigned int flags = 0) {
     MDB_val keyV{key.size(), const_cast<char*>(key.data())};
     MDB_val valV{val.size(), const_cast<char*>(val.data())};
@@ -1647,8 +1672,8 @@ namespace lmdb {
    * @param v
    */
   template<typename T>
-  static inline std::string_view ptr_to_sv(T* v) {
-    return std::string_view(reinterpret_cast<char*>(v), sizeof(*v));
+  static inline lmdb::string_view ptr_to_sv(T* v) {
+    return lmdb::string_view(reinterpret_cast<char*>(v), sizeof(*v));
   }
 
   /**
@@ -1657,8 +1682,8 @@ namespace lmdb {
    * @param v
    */
   template<typename T>
-  static inline std::string_view to_sv(const T &v) {
-    return std::string_view(reinterpret_cast<const char*>(std::addressof(v)), sizeof(v));
+  static inline lmdb::string_view to_sv(const T &v) {
+    return lmdb::string_view(reinterpret_cast<const char*>(std::addressof(v)), sizeof(v));
   }
 
   /**
@@ -1667,7 +1692,7 @@ namespace lmdb {
    * @param v
    */
   template<typename T>
-  static inline T* ptr_from_sv(std::string_view v) {
+  static inline T* ptr_from_sv(lmdb::string_view v) {
     if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
     return reinterpret_cast<T*>(const_cast<char*>(v.data()));
   }
@@ -1678,7 +1703,7 @@ namespace lmdb {
    * @param v
    */
   template<typename T>
-  static inline T from_sv(std::string_view v) {
+  static inline T from_sv(lmdb::string_view v) {
     if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
     T ret;
     std::memcpy(&ret, const_cast<char*>(v.data()), sizeof(T));
