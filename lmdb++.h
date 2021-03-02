@@ -1265,8 +1265,8 @@ public:
    * Opens a database handle.
    *
    * @param txn the transaction handle
-   * @param name
-   * @param flags
+   * @param name the database name, or nullptr
+   * @param flags dbi flags, ie MDB_CREATE
    * @throws lmdb::error on failure
    */
   static dbi
@@ -1275,6 +1275,23 @@ public:
        const unsigned int flags = default_flags) {
     MDB_dbi handle{};
     lmdb::dbi_open(txn, name, flags, &handle);
+    return dbi{handle};
+  }
+
+  /*
+   * This overload is so that DBI names can be passed in as string_views, which can be
+   * useful when storing the names of DBIs in the database itself. We need to convert it
+   * to a std::string to ensure that it is NUL-byte terminated. This overload comes after
+   * the const char* one above so that in that case there is no std::string overhead.
+   */
+
+  static dbi
+  open(MDB_txn* const txn,
+       std::string_view name,
+       const unsigned int flags = default_flags) {
+    MDB_dbi handle{};
+    std::string nameStr(name);
+    lmdb::dbi_open(txn, nameStr.c_str(), flags, &handle);
     return dbi{handle};
   }
 

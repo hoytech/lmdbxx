@@ -379,6 +379,8 @@ This C++17 version is a fork of Arto Bendiken's C++11 version with the following
 
 * If an exception was throw by `txn.commit()` (ie `MDB_MAP_FULL`), and this transaction was later aborted (because it went out of scope while unwinding the stack), then a double-free would occur. This was [fixed](https://github.com/hoytech/lmdbxx/pull/3) by Niklas Salmoukas.
 
+* `dbi::open()` now optionally accepts the DBI name as a `string_view`. This is useful when the DBI names themselves are stored in the DB. [Requested](https://github.com/hoytech/lmdbxx/issues/5) by deepbluev7.
+
 
 
 ## Author

@@ -16,7 +16,7 @@ int main() {
     lmdb::dbi mydb;
     lmdb::dbi mydbdups;
 
-    // Put some values in and read them back out
+    // Put some values in
 
     {
         auto txn = lmdb::txn::begin(env);
@@ -28,6 +28,8 @@ int main() {
         txn.commit();
     }
 
+    // Read them back out
+
     {
         auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
 
@@ -38,6 +40,36 @@ int main() {
         longLivedValue = v;
     }
 
+    // Open DBI with a string_view
+
+    {
+        std::string mydbStr = "mydbJUNK";
+
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+        auto mydb2 = lmdb::dbi::open(txn, std::string_view(mydbStr).substr(0, 4));
+
+        std::string_view v;
+        mydb2.get(txn, "hello", v);
+        if (v != "world") throw std::runtime_error("bad read 1.5");
+    }
+
+    // Loop over null DB, to make sure it contains the table we just created
+
+    {
+        auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+
+        auto emptyDb = lmdb::dbi::open(txn, nullptr);
+
+        auto cursor = lmdb::cursor::open(txn, emptyDb);
+        std::string_view key, val;
+
+        if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("emptyDb cursor err 1");
+        if (key != "mydb") throw std::runtime_error("emptyDb cursor err 2");
+
+        if (cursor.get(key, val, MDB_NEXT)) throw std::runtime_error("emptyDb cursor err 3");
+
+        cursor.close();
+    }
 
     // Update one of the values
 
@@ -48,6 +80,8 @@ int main() {
 
         txn.commit();
     }
+
+    // Make sure updated value was stored
 
     {
         auto txn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
