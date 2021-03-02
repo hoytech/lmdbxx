@@ -1685,7 +1685,7 @@ namespace lmdb {
    */
   template<typename T>
   static inline T* ptr_from_sv(std::string_view v) {
-    if (v.size() != sizeof(T)) error::raise("from_sv", MDB_BAD_VALSIZE);
+    if (v.size() != sizeof(T)) error::raise("ptr_from_sv", MDB_BAD_VALSIZE);
     return reinterpret_cast<T*>(const_cast<char*>(v.data()));
   }
 
