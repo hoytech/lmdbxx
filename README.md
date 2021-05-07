@@ -329,6 +329,19 @@ possible LMDB error conditions:
 * `MDB_KEYEXIST` and `MDB_NOTFOUND` are handled specially by some functions.
 
 
+
+## OpenBSD
+
+OpenBSD is only partially supported by LMDB. The issue is that OpenBSD does not have a unified buffer cache. This means that modifications made to a file through `write()` will not be visible to processes that have memory mapped the file. This is something that [may be fixed some day](http://openbsd-archive.7691.n7.nabble.com/Will-mmap-and-the-read-buffer-cache-be-unified-anyone-working-with-it-td271270.html).
+
+In the mean-time, on OpenBSD you should always open environments with the `MDB_WRITEMAP` flag:
+
+    env.open("/path/to/db/", MDB_WRITEMAP);
+
+Because nested transactions are incompatible with `MDB_WRITEMAP`, they cannot be used on OpenBSD. The test suite disables the nested transaction tests on OpenBSD. 
+
+
+
 ## Support
 
 To report a bug or submit a patch for lmdb++, please file an issue in the [issue tracker on GitHub](https://github.com/hoytech/lmdbxx/issues).

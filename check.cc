@@ -7,12 +7,19 @@
 
 
 int main() {
+  unsigned int envFlags = 0;
+
+#ifdef __OpenBSD__
+  envFlags = MDB_WRITEMAP;
+#endif
+
+
   std::string longLivedValue;
 
   try {
     auto env = lmdb::env::create();
     env.set_max_dbs(64);
-    env.open("testdb/");
+    env.open("testdb/", envFlags);
     lmdb::dbi mydb;
     lmdb::dbi mydbdups;
 
@@ -250,6 +257,8 @@ int main() {
 
     // Nested transactions
 
+    // These tests will fail when WRITEMAP enabled, which must be done on OpenBSD
+#ifndef __OpenBSD__
     {
         auto txn = lmdb::txn::begin(env);
 
@@ -332,6 +341,7 @@ int main() {
 
         if (!caught) throw std::runtime_error("bad nested tx 5");
     }
+#endif
 
 
 
@@ -374,7 +384,7 @@ int main() {
       auto env = lmdb::env::create();
       env.set_max_dbs(64);
       env.set_mapsize(30000);
-      env.open("testdb/");
+      env.open("testdb/", envFlags);
 
       lmdb::dbi mydb;
 
