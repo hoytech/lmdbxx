@@ -30,6 +30,7 @@
 #include <cstdio>      /* for std::snprintf() */
 #include <cstring>     /* for std::memcpy() */
 #include <stdexcept>   /* for std::runtime_error */
+#include <string>      /* for std::string */
 #include <string_view> /* for std::string_view */
 #include <limits>      /* for std::numeric_limits<> */
 #include <memory>      /* for std::addressof */
