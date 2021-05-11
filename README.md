@@ -162,7 +162,7 @@ If you wish to avoid the copying and have the `string_view` point directly to an
       uint64_t val = 123456;
       mydb.put(txn, "some_key", lmdb::ptr_to_sv(&val));
 
-Note that you are responsible for managing the backing memory, and you should ensure that it is valid for as long as you need the constructed `string_view`.
+You are responsible for managing the backing memory, and you should ensure that it is valid for as long as you need the constructed `string_view`.
 
 Similarly, you can get a pointer pointing into the LMDB mapped memory by using `ptr_from_sv`:
 
@@ -173,6 +173,8 @@ Similarly, you can get a pointer pointing into the LMDB mapped memory by using `
 Since the returned pointer is pointing into LMDB's mapped memory, you should not use this pointer after the transaction has been terminated, or after performing any write operations on the DB.
 
 As with `from_sv`, `ptr_from_sv` will throw an `MDB_BAD_VALSIZE` exception if the view isn't the expected size (in this case, 8 bytes).
+
+The pointer returned by `ptr_from_sv` is *not* guaranteed to be aligned.
 
 
 ## Interfaces
@@ -260,7 +262,7 @@ Consider this code:
         cursor.get(key, val, MDB_FIRST);
 
         txn.commit();
-    } // <-- BAD! cursor is destroyed here
+    } // <-- BAD! cursor is destroyed here (after commit)
 
 The above code will result in a double free. You can uncomment a test case in `check.cc` if you want to verify this for yourself. When compiled with `-fsanitize=address` you will see the following:
 
