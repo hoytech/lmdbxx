@@ -1105,6 +1105,23 @@ public:
     lmdb::env_set_max_dbs(handle(), count);
     return *this;
   }
+
+  /**
+   * @notice WARNING: This is a function to access LMDB's internal memory map, use at your own risk!
+   */
+  std::string_view get_internal_map() {
+    if (sizeof(int) != 4 || sizeof(long) != 8 || sizeof(void*) != 8) error::raise("get_internal_map: only LP64 supported", 0);
+
+    // This is a hack that depends on the internal layout of LMDB's MDB_env struct. Hopefully there
+    // will be a better way to get me_map at some point.
+
+    char *me_map = *(char**)(((char*)_handle) + 56);
+
+    MDB_envinfo arg;
+    mdb_env_info(_handle, &arg);
+
+    return std::string_view(me_map, arg.me_mapsize);
+  }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
