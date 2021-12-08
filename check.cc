@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <filesystem>
 
 
 int main() {
@@ -17,6 +18,9 @@ int main() {
   std::string longLivedValue;
 
   try {
+    std::filesystem::remove_all("testdb/");
+    std::filesystem::create_directories("testdb/");
+
     auto env = lmdb::env::create();
     env.set_max_dbs(64);
     env.open("testdb/", envFlags);
