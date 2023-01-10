@@ -11,7 +11,7 @@ PACKAGE_URL       := http://lmdbxx.sourceforge.net/
 DESTDIR  :=
 PREFIX   := /usr/local
 
-CPPFLAGS := -I.
+CPPFLAGS := -Iinclude/
 CXXFLAGS := -g -O2 -std=c++17 -Wall -Werror -fsanitize=address -fsanitize=undefined
 LDFLAGS  := -fsanitize=address -fsanitize=undefined
 LDADD    := -llmdb

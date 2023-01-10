@@ -1,6 +1,6 @@
 /* This is free and unencumbered software released into the public domain. */
 
-#include "lmdb++.h"
+#include "lmdbxx/lmdb++.h"
 
 #include <iostream>
 #include <stdexcept>
