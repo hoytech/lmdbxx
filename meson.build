@@ -8,7 +8,7 @@ project(
 
 lmdb_dep = dependency('lmdb')
 
-lmdbxx_dep = declare_dependency(include_directories : '.', dependencies: lmdb_dep)
+lmdbxx_dep = declare_dependency(include_directories : 'include/', dependencies: lmdb_dep)
 meson.override_dependency('lmdb++', lmdbxx_dep)
 
 install_headers('lmdb++.h')
