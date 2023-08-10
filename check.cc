@@ -349,6 +349,12 @@ int main() {
 
 
 
+    {
+        auto fd = env.get_fd();
+        if (fd <= 2 || fd > 100) throw std::runtime_error("unexpected value from get_fd()");
+    }
+
+
 
     if (0) {
         // This test case is not enabled by default because it causes the process

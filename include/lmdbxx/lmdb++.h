@@ -1106,6 +1106,12 @@ public:
     return *this;
   }
 
+  mdb_filehandle_t get_fd() {
+    mdb_filehandle_t fd;
+    lmdb::env_get_fd(handle(), &fd);
+    return fd;
+  }
+
   /**
    * @notice WARNING: This is a function to access LMDB's internal memory map, use at your own risk!
    */
