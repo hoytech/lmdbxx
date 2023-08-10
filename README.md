@@ -246,6 +246,14 @@ See the [FUNCTIONS.rst](FUNCTIONS.rst) file for a mapping of the procedural inte
   signed integer as the underlying `mdb_env_get_maxkeysize()` function does.
   This conversion is done since the return value cannot in fact be negative.
 
+* The `me_fd` descriptor is not opened with `O_CLOEXEC`. This is a
+  [known LMDB issue](https://bugs.openldap.org/show_bug.cgi?id=8579). The
+  consequence is that if you fork and exec another process, it will have
+  the DB file open as one of its descriptors (read/write mode). In some
+  cases this could unexpected DB corruption or data exfiltration. If your
+  application uses exec you may want to prevent this by calling
+  `fcntl(env.get_fd(), F_SETFD, FD_CLOEXEC)` after opening the DB.
+
 ### Cursor double-free issue
 
 In a read-write transaction, you must make sure to call `.close()` on your cursors (or let them go out of scope) **before** committing or aborting your transaction.
