@@ -1,6 +1,6 @@
 # lmdb++: a C++17 wrapper for LMDB
 
-This is a comprehensive C++ wrapper for the [LMDB](http://symas.com/mdb/) embedded database library,
+This is a comprehensive C++ wrapper for the [LMDB](http://symas.com/lmdb/) embedded database library,
 offering both an error-checked procedural interface and an object-oriented
 resource interface with [RAII](http://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization) semantics.
 
