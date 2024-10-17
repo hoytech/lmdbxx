@@ -37,6 +37,17 @@
 
 namespace lmdb {
   using mode = mdb_mode_t;
+/*
+ * LMDB 0.9.x neither has mdb_size_t nor supports MDB_VL32.
+ * It can be detected by checking if MDB_SIZE_MAX is defined.
+ */
+#ifdef MDB_SIZE_MAX
+  using size_t = mdb_size_t;
+#elif defined(MDB_VL32)
+#error "Although MDB_VL32 is defined, it is not supported by the underlying LMDB version."
+#else
+  using size_t = std::size_t;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -246,7 +257,7 @@ namespace lmdb {
   static inline void env_get_flags(MDB_env* env, unsigned int* flags);
   static inline void env_get_path(MDB_env* env, const char** path);
   static inline void env_get_fd(MDB_env* env, mdb_filehandle_t* fd);
-  static inline void env_set_mapsize(MDB_env* env, std::size_t size);
+  static inline void env_set_mapsize(MDB_env* env, lmdb::size_t size);
   static inline void env_set_max_readers(MDB_env* env, unsigned int count);
   static inline void env_get_max_readers(MDB_env* env, unsigned int* count);
   static inline void env_set_max_dbs(MDB_env* env, MDB_dbi count);
@@ -433,7 +444,7 @@ lmdb::env_get_fd(MDB_env* const env,
  */
 static inline void
 lmdb::env_set_mapsize(MDB_env* const env,
-                      const std::size_t size) {
+                      const lmdb::size_t size) {
   const int rc = ::mdb_env_set_mapsize(env, size);
   if (rc != MDB_SUCCESS) {
     error::raise("mdb_env_set_mapsize", rc);
@@ -534,7 +545,7 @@ namespace lmdb {
     MDB_env* env, MDB_txn* parent, unsigned int flags, MDB_txn** txn);
   static inline MDB_env* txn_env(MDB_txn* txn) noexcept;
 #ifdef LMDBXX_TXN_ID
-  static inline std::size_t txn_id(MDB_txn* txn) noexcept;
+  static inline lmdb::size_t txn_id(MDB_txn* txn) noexcept;
 #endif
   static inline void txn_commit(MDB_txn* txn);
   static inline void txn_abort(MDB_txn* txn) noexcept;
@@ -569,7 +580,7 @@ lmdb::txn_env(MDB_txn* const txn) noexcept {
 /**
  * @note Only available in HEAD, not yet in any 0.9.x release (as of 0.9.16).
  */
-static inline std::size_t
+static inline lmdb::size_t
 lmdb::txn_id(MDB_txn* const txn) noexcept {
   return ::mdb_txn_id(txn);
 }
@@ -821,7 +832,7 @@ namespace lmdb {
   static inline bool cursor_get(MDB_cursor* cursor, MDB_val* key, MDB_val* data, MDB_cursor_op op);
   static inline bool cursor_put(MDB_cursor* cursor, MDB_val* key, MDB_val* data, unsigned int flags);
   static inline void cursor_del(MDB_cursor* cursor, unsigned int flags);
-  static inline void cursor_count(MDB_cursor* cursor, std::size_t& count);
+  static inline void cursor_count(MDB_cursor* cursor, lmdb::size_t& count);
 }
 
 /**
@@ -926,7 +937,7 @@ lmdb::cursor_del(MDB_cursor* const cursor,
  */
 static inline void
 lmdb::cursor_count(MDB_cursor* const cursor,
-                   std::size_t& count) {
+                   lmdb::size_t& count) {
   const int rc = ::mdb_cursor_count(cursor, &count);
   if (rc != MDB_SUCCESS) {
     error::raise("mdb_cursor_count", rc);
@@ -1083,7 +1094,7 @@ public:
    * @param size
    * @throws lmdb::error on failure
    */
-  env& set_mapsize(const std::size_t size) {
+  env& set_mapsize(const lmdb::size_t size) {
     lmdb::env_set_mapsize(handle(), size);
     return *this;
   }
@@ -1388,7 +1399,7 @@ public:
    * @param txn a transaction handle
    * @throws lmdb::error on failure
    */
-  std::size_t size(MDB_txn* const txn) const {
+  lmdb::size_t size(MDB_txn* const txn) const {
     return stat(txn).ms_entries;
   }
 
@@ -1674,8 +1685,8 @@ public:
   /**
    * Return count of duplicates for current key. This call is only valid on databases that support sorted duplicate data items MDB_DUPSORT.
    */
-  size_t count() {
-    std::size_t countp;
+  lmdb::size_t count() {
+    lmdb::size_t countp;
     lmdb::cursor_count(handle(), countp);
     return countp;
   }
