@@ -99,6 +99,7 @@ preprocessor's include path, and you must link with the `liblmdb` native
 library. On Ubuntu Linux 14.04 and newer, these prerequisites can be
 satisfied by installing the `liblmdb-dev` package.
 
+Both LMDB 1.0 and 0.9 series are supported, although the DB formats are not compatible with each-other.
 
 
 
@@ -365,6 +366,8 @@ Also see Arto's original [github](https://github.com/bendiken/lmdbxx) (not maint
 ## Fork Differences
 
 This C++17 version is a fork of Arto Bendiken's C++11 version with the following changes:
+
+* Supports LMDB 1.0 series as well as 0.9.
 
 * `lmdb::val` has been removed and replaced with `std::string_view`. See the [string::view section](#string_view) for more details.
 
