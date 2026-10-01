@@ -8,6 +8,12 @@
 
 
 int main() {
+  std::cerr << "\n-----------------------------------------------------" << std::endl;
+  std::cerr << "lmdbxx test suite: https://github.com/hoytech/lmdbxx"<< std::endl;
+  std::cerr << "LMDB version: " << MDB_VERSION_STRING << std::endl;
+  std::cerr << "-----------------------------------------------------\n" << std::endl;
+
+
   unsigned int envFlags = 0;
 
 #ifdef __OpenBSD__
@@ -75,7 +81,16 @@ int main() {
         std::string_view key, val;
 
         if (!cursor.get(key, val, MDB_FIRST)) throw std::runtime_error("emptyDb cursor err 1");
-        if (key != "mydb") throw std::runtime_error("emptyDb cursor err 2");
+
+        std::string dbName;
+        #if MDB_VERSION_MAJOR >= 1
+            // As of LMDB 1.0, db names are NUL terminated
+            dbName = std::string("mydb", 5);
+        #else
+            dbName = "mydb";
+        #endif
+
+        if (key != dbName) throw std::runtime_error("emptyDb cursor err 2");
 
         if (cursor.get(key, val, MDB_NEXT)) throw std::runtime_error("emptyDb cursor err 3");
 
@@ -316,7 +331,15 @@ int main() {
                 caught = true;
             }
 
-            if (!caught) throw std::runtime_error("bad nested tx 2.1");
+            bool expectedException;
+            #if MDB_VERSION_MAJOR >= 1
+                // This is possible in LMDB 1.0, but not prior
+                expectedException = false;
+            #else
+                expectedException = true;
+            #endif
+
+             if (caught != expectedException) throw std::runtime_error("bad nested tx 2.1");
         }
 
         txn.commit();
@@ -371,7 +394,7 @@ int main() {
         txn.commit();
     }
   }
-  catch (const lmdb::error& error) {
+  catch (const std::exception &error) {
     std::cerr << "Failed with error: " << error.what() << std::endl;
     return 1;
   }
@@ -423,5 +446,6 @@ int main() {
       }
   }
 
+  std::cout << "Success." << std::endl;
   return 0;
 }
